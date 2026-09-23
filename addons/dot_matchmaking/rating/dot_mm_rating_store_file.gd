@@ -35,7 +35,22 @@ func put(player_id: String, playlist: StringName, rating: DotMmRating) -> DotRes
 	return save()
 
 
+## Logged here, because the in-memory rating has already changed by the time this runs
+## and the caller -- DotMatchmaker.report_result -- returns the failure part-way through
+## a match without a line. ERROR: the ratings on disk are now behind the ones in force,
+## and a restart puts those players back where they were.
 func save() -> DotResult:
+	var res := _write()
+	if not res.ok:
+		DotLog.error(CHANNEL, "ratings were not written", {
+			"path": path,
+			"code": res.code(),
+			"error": res.error.message if res.error != null else "",
+		})
+	return res
+
+
+func _write() -> DotResult:
 	var dir := path.get_base_dir()
 	if not DirAccess.dir_exists_absolute(dir):
 		var made := DirAccess.make_dir_recursive_absolute(dir)

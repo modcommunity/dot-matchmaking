@@ -25,7 +25,8 @@ extends RefCounted
 ## of the tickets and that number, which is what lets the suite replay a queue minute by
 ## minute in a millisecond.
 
-const CHANNEL := "matchmaking.queue"
+# No log channel: a pure function of the tickets and [code]now[/code], run every pass.
+# DotMatchmaker logs what comes out of it -- queued, match found, fell through.
 
 ## Subsets tried per anchor before giving up on it for this pass.
 const SEARCH_BUDGET := 4000
