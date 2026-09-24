@@ -88,4 +88,4 @@ done
 timeout 120 godot --headless --path . res://examples/matchmaking_selftest.tscn
 ```
 
-8 sections, 85 checks, no network and no wall clock. **Section 1 is the one to keep**: every other check compares ratings with each other and would still pass against a rating system with an arithmetic slip in it.
+8 sections, 88 checks, no network and no wall clock. **Section 1 is the one to keep**: every other check compares ratings with each other and would still pass against a rating system with an arithmetic slip in it.

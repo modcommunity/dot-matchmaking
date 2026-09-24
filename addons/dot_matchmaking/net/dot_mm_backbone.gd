@@ -43,6 +43,13 @@ const ACCOUNT_PREFIX := "backbone:"
 ## Results kept for retry when the backbone is unreachable. Past this the oldest goes.
 const MAX_PENDING := 200
 
+## The site's own bounds (website-city `src/types/integration/rating.ts`): queues one
+## [code]define[/code] may declare, and players one [code]players[/code] read may name. Past
+## either the site refuses the WHOLE request with a 400, which is not retryable -- so
+## every queue, or every rating, went missing because there was one too many.
+const DEFINE_BATCH := 25
+const READ_BATCH := 100
+
 var client: Object = null
 
 ## Where answers land. Usually the matchmaker's own store.
@@ -59,21 +66,29 @@ func _init(p_client: Object = null, p_store: DotMmRatingStore = null) -> void:
 	store = p_store
 
 
-## Tells the site which queues exist and their shape.
+## Tells the site which queues exist and their shape, [constant DEFINE_BATCH] at a time.
+## Value: the last batch's answer.
 func define(playlists: Array) -> DotResult:
-	var body := {"playlists": []}
+	var rows := []
 	for pl_v in playlists:
 		var pl: DotMmPlaylist = pl_v
-		(body["playlists"] as Array).append({
+		rows.append({
 			"id": String(pl.id),
-			"name": pl.display_name,
+			# The site requires a name; a playlist's display name defaults to empty, and one
+			# nameless queue used to have the whole declaration refused.
+			"name": pl.display_name if pl.display_name.strip_edges() != "" else String(pl.id),
 			"game": pl.game,
 			"teams": pl.teams,
 			"teamSize": pl.team_size,
 			"ranked": pl.ranked,
 			"placementGames": pl.placement_games,
 		})
-	return await _post(DEFINE_PATH, body)
+	var res := DotResult.success({"ok": true, "created": 0, "updated": 0})
+	for i in range(0, rows.size(), DEFINE_BATCH):
+		res = await _post(DEFINE_PATH, {"playlists": rows.slice(i, i + DEFINE_BATCH)})
+		if not res.ok:
+			return res
+	return res
 
 
 ## Files one finished match. See [method DotMatchmaker.report_result] for the arguments.
@@ -128,17 +143,24 @@ func flush() -> DotResult:
 	return DotResult.success(done)
 
 
-## Pulls current ratings for [param player_ids] into [member store].
+## Pulls current ratings for [param player_ids] into [member store], [constant READ_BATCH]
+## at a time. Value: how many ratings were stored.
 func refresh(playlist_id: StringName, player_ids: PackedStringArray) -> DotResult:
 	if client == null or not client.has_method("get_integration"):
 		return DotResult.fail(DotError.CODE_STATE, "no backbone client")
-	var res: DotResult = await client.call("get_integration", PLAYERS_PATH, {
-		"playlist": String(playlist_id),
-		"players": ",".join(player_ids),
-	})
-	if not res.ok:
-		return _explain(res, SCOPE_READ)
-	return _absorb(playlist_id, res.value)
+	var stored := 0
+	for i in range(0, player_ids.size(), READ_BATCH):
+		var res: DotResult = await client.call("get_integration", PLAYERS_PATH, {
+			"playlist": String(playlist_id),
+			"players": ",".join(player_ids.slice(i, i + READ_BATCH)),
+		})
+		if not res.ok:
+			return _explain(res, SCOPE_READ)
+		var got := _absorb(playlist_id, res.value)
+		if not got.ok:
+			return got
+		stored += int(got.value)
+	return DotResult.success(stored)
 
 
 func pending_count() -> int:

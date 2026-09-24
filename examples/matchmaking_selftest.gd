@@ -16,7 +16,7 @@ extends Node
 ## [/codeblock]
 
 const SECTIONS := 8
-const CHECKS := 85
+const CHECKS := 88
 
 var _passed := 0
 var _failed := 0
@@ -451,6 +451,23 @@ func _test_backbone() -> void:
 	fake.status = 200
 	var flushed := await bb.flush()
 	_check(flushed.ok and bb.pending_count() == 0, "and sent when it can")
+
+	# The site's bounds, met here rather than refused there.
+	fake.posts.clear()
+	var many := []
+	for i in range(30):
+		many.append(DotMmPlaylist.of(StringName("q%d" % i), 2, 1))
+	(many[0] as DotMmPlaylist).display_name = ""
+	await bb.define(many)
+	var first_define: Dictionary = fake.posts[0][1]
+	_check(fake.posts.size() == 2 and (first_define["playlists"] as Array).size() == 25, "thirty queues are declared twenty-five at a time")
+	_check(str((first_define["playlists"] as Array)[0]["name"]) == "q0", "and a queue with no display name is named by its id")
+	fake.posts.clear()
+	var crowd := PackedStringArray()
+	for i in range(250):
+		crowd.append("p%d" % i)
+	await bb.refresh(&"duel", crowd)
+	_check(fake.posts.size() == 3 and str(fake.posts[2][1]["players"]).split(",").size() == 50, "and two hundred and fifty ratings are read a hundred at a time")
 
 
 # --- helpers ------------------------------------------------------------------
