@@ -1,8 +1,10 @@
 # The backbone contract
 
-website-city has no skill rating of any kind: no ELO, MMR, Glicko or TrueSkill in `src`, `prisma` or `docs` (`prisma/models/rating.prisma` is thumbs up and down on content). What the site calls "matchmaking" is `PartySearch`, which finds a **server** for a party by loosening the party's criteria one step per pass. There is no player queue.
+Before these routes, website-city had no skill rating of any kind: no ELO, MMR, Glicko or TrueSkill in `src`, `prisma` or `docs` (`prisma/models/rating.prisma` is thumbs up and down on content). What the site calls "matchmaking" is `PartySearch`, which finds a **server** for a party by loosening the party's criteria one step per pass. There is still no player queue on the site.
 
-This is what the site needs for dot-matchmaking to use it, shaped deliberately like the `stats/*` routes dot-stats already speaks, so the site-side work is a copy of a pattern rather than a new one.
+These routes were added for dot-matchmaking on website-city branch `feat/game-backbone` (not yet merged or deployed), shaped deliberately like the `stats/*` routes dot-stats already speaks. The site's Glicko-2 is a separate implementation and is tested against the same figures as this addon's; driven from Godot against a live dev server, the rating the site answered for a first win was 1662.3109, the same as `DotMmGlicko2.rate_match` computes locally.
+
+One thing the site does that a client must allow for: its integration handler coerces every all-digit query value to a number. `rating/players` accepts that for its string fields; a GET should still carry its nonce in the `x-tmc-nonce` header, as `DotBackboneClient.get_integration` does.
 
 ## Routes
 

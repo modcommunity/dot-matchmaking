@@ -10,7 +10,7 @@ ln -s ../../dot-core/addons/dot_core addons/dot_core
 
 ## What existed, and what did not
 
-website-city's "matchmaking" is `PartySearch`: it finds a **server** for a party, loosening the party's criteria one step per pass. There is no player queue and **no skill rating anywhere** in the site. So this addon is the whole player-queue half, and its backbone half is a contract ([docs/backbone-contract.md](docs/backbone-contract.md)) shaped like the `stats/*` routes dot-stats already uses.
+website-city's "matchmaking" is `PartySearch`: it finds a **server** for a party, loosening the party's criteria one step per pass. There is no player queue and **no skill rating anywhere** in the site. So this addon is the whole player-queue half. Its backbone half ([docs/backbone-contract.md](docs/backbone-contract.md)) was then added to the site, shaped like the `stats/*` routes dot-stats uses, on a branch not yet deployed; the site's own Glicko-2 agrees with this one to four places on a live result.
 
 ## The pieces
 
