@@ -15,8 +15,8 @@ extends Node
 ## godot --headless --path . res://examples/matchmaking_selftest.tscn
 ## [/codeblock]
 
-const SECTIONS := 8
-const CHECKS := 88
+const SECTIONS := 9
+const CHECKS := 110
 
 var _passed := 0
 var _failed := 0
@@ -43,6 +43,7 @@ func _run() -> void:
 	await _test_accept_step()
 	_test_results()
 	await _test_backbone()
+	await _test_site_rules()
 
 	_line("")
 	_line("%d sections, %d passed, %d failed" % [_section_count, _passed, _failed])
@@ -410,16 +411,20 @@ class FakeBackbone:
 	extends RefCounted
 	var posts: Array = []
 	var status: int = 200
+	## What a failing answer's body was; DotHttp keeps it as the error's detail.
+	var fail_body: String = "{}"
 	var answer: Dictionary = {}
 
 	func post_integration(path: String, body: Dictionary) -> DotResult:
 		posts.append([path, body])
 		if status != 200:
-			return DotResult.failure(DotError.from_http(status, "{}"))
+			return DotResult.failure(DotError.from_http(status, fail_body))
 		return DotResult.success(answer)
 
 	func get_integration(path: String, query: Dictionary = {}) -> DotResult:
 		posts.append([path, query])
+		if status != 200:
+			return DotResult.failure(DotError.from_http(status, fail_body))
 		return DotResult.success(answer)
 
 
@@ -468,6 +473,103 @@ func _test_backbone() -> void:
 		crowd.append("p%d" % i)
 	await bb.refresh(&"duel", crowd)
 	_check(fake.posts.size() == 3 and str(fake.posts[2][1]["players"]).split(",").size() == 50, "and two hundred and fifty ratings are read a hundred at a time")
+
+
+# --- 9 ----------------------------------------------------------------------
+
+func _test_site_rules() -> void:
+	_section("What the site would refuse is refused here, with the reason")
+
+	# Playlist ids: website-city IdentifierText, plus this addon's lowercase.
+	_check(not DotMmPlaylist.of(&"ranked/5", 2, 5).validate().ok, "a playlist id with a slash is refused")
+	_check(not DotMmPlaylist.of(&"-duel", 2, 1).validate().ok, "and one that starts with a hyphen")
+	_check(not DotMmPlaylist.of(StringName("q".repeat(65)), 2, 1).validate().ok, "and one of 65 characters")
+	_check(DotMmPlaylist.of(&"ranked.5v5:eu-1", 2, 5).validate().ok, "while dot, colon, hyphen and digits pass")
+
+	var fake := FakeBackbone.new()
+	var bb := DotMmBackbone.new(fake, DotMmRatingStore.new())
+	var bad_id := DotMmPlaylist.of(&"duel", 2, 1)
+	bad_id.id = &"duel/eu"
+	var r := await bb.define([DotMmPlaylist.of(&"ok", 2, 1), bad_id])
+	_check(not r.ok and fake.posts.is_empty(), "define with one bad id sends nothing")
+	var long_name := DotMmPlaylist.of(&"duel", 2, 1)
+	long_name.display_name = "n".repeat(121)
+	r = await bb.define([long_name])
+	_check(not r.ok and fake.posts.is_empty() and r.error.message.contains("display name"), "nor with a 121-character name, and says which")
+
+	# Submit: keys, the 128 cap, duplicates.
+	r = await bb.submit(&"duel", "m1", [["k 1"], ["k2"]], [1, 2])
+	_check(not r.ok and r.error.message.contains("k 1") and r.error.message.contains("letters, digits"), "a player key with a space is refused, naming it")
+	r = await bb.submit(&"duel", "m1", [["k".repeat(65)], ["k2"]], [1, 2])
+	_check(not r.ok and r.error.message.contains("1 to 64"), "and a key of 65 characters")
+	r = await bb.submit(&"duel", "m1", [["k1", "k2"], ["k3", "k1"]], [1, 2])
+	_check(not r.ok and r.error.message.contains("k1 appears more than once"), "a player on two sides is refused")
+	var big := []
+	for s_i in range(3):
+		var side := []
+		for p_i in range(43):
+			side.append("p%d_%d" % [s_i, p_i])
+		big.append(side)
+	r = await bb.submit(&"ffa", "m1", big, [1, 2, 3])
+	_check(not r.ok and r.error.message.contains("at most 128"), "129 players in one match is refused")
+	r = await bb.submit(&"duel", "m/1", [["k1"], ["k2"]], [1, 2])
+	_check(not r.ok and r.error.message.contains("match id"), "a match id with a slash is refused")
+	r = await bb.submit(&"Duel Eu", "m1", [["k1"], ["k2"]], [1, 2])
+	_check(not r.ok and r.error.message.contains("playlist"), "and a playlist id the site would refuse")
+	r = await bb.submit(&"duel", "m1", [["k1"], ["k2"]], [1])
+	_check(not r.ok and r.error.message.contains("one placement per side"), "and a placement missing")
+	_check(fake.posts.is_empty() and bb.pending_count() == 0, "none of which was sent, or kept to retry")
+	var full := [[], []]
+	for p_i in range(64):
+		(full[0] as Array).append("a%d" % p_i)
+		(full[1] as Array).append("b%d" % p_i)
+	fake.answer = {"ok": true, "ratings": {}}
+	r = await bb.submit(&"duel", "m-full", full, [1, 2])
+	_check(r.ok and fake.posts.size() == 1, "while exactly 128 on two sides of 64 is sent")
+
+	# A 404 is either the site's own answer or no route at all.
+	fake.status = 404
+	fake.fail_body = '{"error":"No playlist \\"duel\\" — declare it with rating/define first."}'
+	r = await bb.submit(&"duel", "m5", [["k1"], ["k2"]], [1, 2])
+	_check(not r.ok and r.error.message.contains("No playlist") and not r.error.message.contains("no rating routes"), "a 404 the site explained is passed on as what it said")
+	r = await bb.refresh(&"duel", PackedStringArray(["k1"]))
+	_check(not r.ok and r.error.message.contains("No playlist"), "on a read too")
+	fake.fail_body = "<!DOCTYPE html><html><head><title>Page Not Found</title>"
+	r = await bb.submit(&"duel", "m6", [["k1"], ["k2"]], [1, 2])
+	_check(not r.ok and r.error.message.contains("no rating routes yet"), "and Next's HTML not-found page means the route is missing")
+	fake.status = 200
+
+	# Rating parity: warned about, not sent.
+	var cfg := DotMatchmakingConfig.new()
+	_check(DotMmBackbone.parity_gaps(cfg).is_empty(), "the default config rates as the site does")
+	cfg.tau = 0.7
+	cfg.inactivity_period_days = 30.0
+	cfg.min_participation = 0.5
+	cfg.leaver_takes_loss = false
+	_check(DotMmBackbone.parity_gaps(cfg).size() == 4, "and all four differences the site cannot follow are named")
+	var warned: Array = []
+	var sink := func(rec: Dictionary) -> void:
+		if int(rec["level"]) == DotLog.Level.WARN and str(rec["channel"]) == DotMmBackbone.CHANNEL:
+			warned.append(rec)
+	DotLog.add_sink(sink)
+	DotLog.set_channel_level(DotMmBackbone.CHANNEL, DotLog.Level.WARN)
+	var old_stdout := DotLog.print_to_stdout
+	DotLog.print_to_stdout = false
+	fake.posts.clear()
+	await bb.define([DotMmPlaylist.of(&"duel", 2, 1)], cfg)
+	var ranked_warns := warned.size()
+	var unranked := DotMmPlaylist.of(&"casual", 2, 1)
+	unranked.ranked = false
+	await bb.define([unranked], cfg)
+	var unranked_warns := warned.size() - ranked_warns
+	await bb.define([DotMmPlaylist.of(&"duel", 2, 1)], DotMatchmakingConfig.new())
+	var default_warns := warned.size() - ranked_warns - unranked_warns
+	DotLog.print_to_stdout = old_stdout
+	DotLog.clear_channel_level(DotMmBackbone.CHANNEL)
+	DotLog.remove_sink(sink)
+	_check(ranked_warns == 1 and unranked_warns == 0 and default_warns == 0, "define warns once for a ranked queue under a config the site will not follow, and only then")
+	var sent_row: Dictionary = (fake.posts[0][1]["playlists"] as Array)[0]
+	_check(fake.posts.size() == 3 and not sent_row.has("tau") and sent_row.size() == 7, "and still declares it, with no field the site does not have")
 
 
 # --- helpers ------------------------------------------------------------------

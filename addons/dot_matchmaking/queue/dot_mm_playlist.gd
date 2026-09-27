@@ -16,7 +16,8 @@ extends Resource
 
 @export_group("Identity")
 
-## Stable id, on the wire and in the rating store. Lowercase, no spaces.
+## Stable id, on the wire and in the rating store. Lowercase letters, digits, dot, underscore,
+## colon or hyphen, starting with a letter or digit, at most 64: the site's rule plus lowercase.
 @export var id: StringName = &""
 
 @export var display_name: String = ""
@@ -133,9 +134,39 @@ func quality_after(waited: float) -> float:
 	return maxf(0.0, min_quality - min_quality_decay * maxf(0.0, waited))
 
 
+## The longest id the site takes (website-city [code]src/types/integration/rating.ts[/code],
+## [code]IdentifierText[/code]).
+const SITE_ID_MAX := 64
+
+
+## Why the site would refuse [param value] as a playlist id, or [code]""[/code] if it would
+## not. The site's rule exactly: 1 to 64 characters of letters, digits, dot, underscore,
+## colon or hyphen, starting with a letter or a digit. A playlist id travels in
+## [code]define[/code], in every [code]submit[/code] and in every [code]players[/code] read,
+## and a refusal there is a 400 nobody retries: every result for that queue is lost.
+##
+## The site trims first, so it would take [code]" duel"[/code] as [code]duel[/code]. This
+## refuses it instead, because the answer would then come back under a different id from
+## the one the game stores ratings by.
+static func site_id_problem(value: String) -> String:
+	if value.is_empty():
+		return "an id is empty"
+	if value.length() > SITE_ID_MAX:
+		return "an id is at most %d characters (this is %d)" % [SITE_ID_MAX, value.length()]
+	var re := RegEx.create_from_string("^[A-Za-z0-9][A-Za-z0-9._:-]*$")
+	if re.search(value) == null:
+		return "an id is letters, digits, dot, underscore, colon or hyphen, starting with a letter or digit"
+	return ""
+
+
 func validate() -> DotResult:
 	if String(id) == "" or String(id) != String(id).to_lower() or String(id).contains(" "):
 		return DotResult.fail(DotError.CODE_INVALID, "a playlist id must be lowercase with no spaces", String(id))
+	# Lowercase is this addon's own rule; the rest is the site's, so a queue the site would
+	# refuse is refused here, before a match is ever played in it.
+	var site := site_id_problem(String(id))
+	if site != "":
+		return DotResult.fail(DotError.CODE_INVALID, "the backbone would refuse this playlist id: " + site, String(id))
 	if teams < 2:
 		return DotResult.fail(DotError.CODE_INVALID, "a match needs two sides", String(id))
 	if team_size < 1:

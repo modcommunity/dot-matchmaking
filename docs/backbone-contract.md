@@ -55,6 +55,26 @@ Both implementations must pass the same two checks, which are in `examples/match
 
 A rule that lives only in the game is one the site cannot check, and two implementations that disagree give a wrong number with nothing failing.
 
+## What the game checks before sending
+
+The site refuses a whole body with a 400 for one bad field, and a 400 is not retried, so a match lost that way is lost for good. `DotMmBackbone` therefore applies the site's own rules (`src/types/integration/rating.ts`) first and fails with the reason instead of sending:
+
+- **Playlist ids** (`DotMmPlaylist.validate`, so also at `DotMatchmaker.add_playlist`): 1 to 64 of `A-Za-z0-9._:-`, starting with a letter or digit, plus this addon's own rule that an id is lowercase.
+- **`define`** (`define_problem`): the id as above, a display name of at most 120, a game of at most 64, at most 64 sides of 64, placement games 0 to 1000.
+- **`submit`** (`submit_problem`): the playlist id; a match id of 1 to 128 of `A-Za-z0-9._:-`; 2 to 64 sides of 1 to 64 players; one whole-number placement from 0 to 10000 per side; each player key 1 to 64 of `A-Za-z0-9._:-` and not `backbone:…`; no player twice; at most 128 players; no NaN participation. A refused result is not kept for retry.
+
+One deliberate difference: the site trims an id before checking it, and the game refuses one with spaces round it. The site would answer under the trimmed key, and the rating would land on a player the game's store does not have.
+
+## What a 404 means
+
+Two different things, told apart by the body (`DotMmBackbone._explain`). A site handler answers JSON with an `error`: `No playlist "…" — declare it with rating/define first.` for an undeclared queue on `submit` or `players`, or that the credential's app or server no longer exists. That text is passed on. A route the deployed site does not have is Next's HTML not-found page, which is reported as "the backbone has no rating routes yet".
+
+## Rating parity: the site rates by fixed rules
+
+The site hard-codes what `DotMatchmakingConfig` lets a game change (`src/types/rating/glicko2.ts`: `GLICKO_TAU` 0.5, `RATING_INACTIVITY_PERIOD_DAYS` 14, `RATING_MIN_PARTICIPATION` 0.25, and a leaver always rated as having lost, in `RateSubmission`). `define` has no field for any of them, and the site's schema strips keys it does not know, so sending them would be silently ignored, not stored. A game that changes one rates one way on a self-hosted server and another way online.
+
+Until the site takes them, `DotMmBackbone.define(playlists, config)` logs a WARN (channel `matchmaking.backbone`) when a ranked queue is declared under a config that differs, naming each difference (`DotMmBackbone.parity_gaps`), and still declares the queue. It sends nothing new. The site half of the fix: accept `tau`, `ratingPeriodDays`, `minParticipation` and `leaverTakesLoss` per playlist in `RatingDefineInput`, store them on `RatingPlaylist`, and pass them to `RateSubmission` and `RatingAt`; then `define` sends them and the warning goes.
+
 ## Where matchmaking would run on the site
 
 The play center is the natural front door: a queue button per supported game, a ticket per player or party, and the site's own worker running passes. `DotMatchmaker` is written so that the same rules can run in a dedicated lobby server today and in the site later: it takes ids and a clock, never a socket, and its queue is a pure function of the tickets and the time.

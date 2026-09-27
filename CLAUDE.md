@@ -58,6 +58,14 @@ A decline or a timeout cools down only the person responsible and drops their ti
 
 `DotMmBackbone.submit` sends the result, not numbers, and stores what comes back. The algorithm is duplicated on the site, as dot-stats' merge rule is, and both sides test the same worked example.
 
+### What the site would refuse is refused here
+
+A body the site rejects is a 400, and a 400 is not retried: the match is gone. So `define` and `submit` check the site's own rules first (ids, charsets, the 64 / 128 caps, duplicates, placements) and fail with the reason; a playlist id the site would refuse is refused by `DotMmPlaylist.validate`, before a match is ever played in that queue. The rules and the one deliberate difference (an id with spaces round it) are in [docs/backbone-contract.md](docs/backbone-contract.md). A 404 is told apart the same way: the site's own "No playlist" is passed on, and only Next's HTML page means the routes are missing.
+
+### The site does not follow this config yet
+
+`tau`, `inactivity_period_days`, `min_participation` and `leaver_takes_loss` are the site's constants, not per-playlist settings, and `define` has no field for them. Change one and a ranked queue is rated by one rule offline and another online. `DotMmBackbone.define(playlists, config)` warns when that is so and sends nothing new; the site half is written down in the contract doc under "Rating parity".
+
 ### The store is synchronous
 
 A queue pass asks for every member's rating; an `await` in the middle of that is a pass that can interleave with the next. A networked store keeps a local copy and refreshes it on its own schedule (`DotMmBackbone.refresh`).
@@ -88,4 +96,4 @@ done
 timeout 120 godot --headless --path . res://examples/matchmaking_selftest.tscn
 ```
 
-8 sections, 88 checks, no network and no wall clock. **Section 1 is the one to keep**: every other check compares ratings with each other and would still pass against a rating system with an arithmetic slip in it.
+9 sections, 110 checks, no network and no wall clock. **Section 1 is the one to keep**: every other check compares ratings with each other and would still pass against a rating system with an arithmetic slip in it.
