@@ -52,7 +52,7 @@ A found match waits for everybody to accept. If somebody declines or does not an
 
 ## The website
 
-Ratings are the one number that decides who other people are made to play against, so on TMC **the website computes them, not the game server**. `DotMmBackbone` files the match result (sides, places, participation, leavers) and stores the ratings the website sends back. The website's rating routes were added for this asset, in the same shape as its statistics routes, and are **not yet deployed**; [docs/backbone-contract.md](docs/backbone-contract.md) lists them. Against a live dev server of them, a result filed from Godot came back rated exactly as this asset rates it locally. Without them, and permanently for a self-hosted server, the matchmaker rates locally into a file.
+Ratings are the one number that decides who other people are made to play against, so on TMC **the website computes them, not the game server**. `DotMmBackbone` files the match result (sides, places, participation, leavers) and stores the ratings the website sends back. The website's rating routes were added for this asset, in the same shape as its statistics routes, and are merged to website-city's `main` (deployment is the operator's); [docs/backbone-contract.md](docs/backbone-contract.md) lists them. Against a live dev server of them, a result filed from Godot came back rated exactly as this asset rates it locally. Without them, and permanently for a self-hosted server, the matchmaker rates locally into a file.
 
 ## Installing
 
