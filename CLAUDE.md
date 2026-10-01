@@ -62,9 +62,13 @@ A decline or a timeout cools down only the person responsible and drops their ti
 
 A body the site rejects is a 400, and a 400 is not retried: the match is gone. So `define` and `submit` check the site's own rules first (ids, charsets, the 64 / 128 caps, duplicates, placements) and fail with the reason; a playlist id the site would refuse is refused by `DotMmPlaylist.validate`, before a match is ever played in that queue. The rules and the one deliberate difference (an id with spaces round it) are in [docs/backbone-contract.md](docs/backbone-contract.md). A 404 is told apart the same way: the site's own "No playlist" is passed on, and only Next's HTML page means the routes are missing.
 
-### The site does not follow this config yet
+### The config's rating rules go to the site
 
-`tau`, `inactivity_period_days`, `min_participation` and `leaver_takes_loss` are the site's constants, not per-playlist settings, and `define` has no field for them. Change one and a ranked queue is rated by one rule offline and another online. `DotMmBackbone.define(playlists, config)` warns when that is so and sends nothing new; the site half is written down in the contract doc under "Rating parity".
+`tau`, `inactivity_period_days`, `min_participation` and `leaver_takes_loss` are sent per queue by `DotMmBackbone.define(playlists, config)` (`tau`, `ratingPeriodDays`, `minParticipation`, `leaverTakesLoss`), so a ranked queue is rated online by the rule it is rated by offline. A config the site would refuse is refused here; a site that predates the fields drops them unread and rates by its defaults, which are this config's defaults. Contract doc, "Rating parity".
+
+### A result can arrive before its queue
+
+The site answers a submit for an undeclared queue with a 404 (`No playlist …`), and a 404 is not kept for retry. So the backbone remembers every row `define` sends (before sending it), and on that 404 declares the one queue again and files the result once more. Once: a second 404 is the answer.
 
 ### The store is synchronous
 
@@ -96,4 +100,4 @@ done
 timeout 120 godot --headless --path . res://examples/matchmaking_selftest.tscn
 ```
 
-9 sections, 110 checks, no network and no wall clock. **Section 1 is the one to keep**: every other check compares ratings with each other and would still pass against a rating system with an arithmetic slip in it.
+9 sections, 119 checks, no network and no wall clock. **Section 1 is the one to keep**: every other check compares ratings with each other and would still pass against a rating system with an arithmetic slip in it.

@@ -15,8 +15,11 @@ Under `/api/integration/v1`, integration credential, `ts` (Unix **seconds**) and
 The queues this app runs, so the site can show them and refuse results for queues it does not know.
 
 ```json
-{ "playlists": [ { "id": "ranked5", "name": "Ranked 5v5", "game": "arena", "teams": 2, "teamSize": 5, "ranked": true, "placementGames": 10 } ] }
+{ "playlists": [ { "id": "ranked5", "name": "Ranked 5v5", "game": "arena", "teams": 2, "teamSize": 5, "ranked": true, "placementGames": 10,
+                   "tau": 0.5, "ratingPeriodDays": 14, "minParticipation": 0.25, "leaverTakesLoss": true } ] }
 ```
+
+The last four are optional (see "Rating parity"): `define(playlists, config)` sends them from the config, `define(playlists)` leaves them out.
 
 ### `POST rating/submit` — `RATING_WRITE`
 
@@ -69,11 +72,13 @@ One deliberate difference: the site trims an id before checking it, and the game
 
 Two different things, told apart by the body (`DotMmBackbone._explain`). A site handler answers JSON with an `error`: `No playlist "…" — declare it with rating/define first.` for an undeclared queue on `submit` or `players`, or that the credential's app or server no longer exists. That text is passed on. A route the deployed site does not have is Next's HTML not-found page, which is reported as "the backbone has no rating routes yet".
 
-## Rating parity: the site rates by fixed rules
+The site keeps answering an undeclared queue with that 404 (changing the status would break the contract), so the game handles it: a `submit` (or a `flush` of a kept one) that gets `No playlist …` declares that one queue again from the row `define` last sent for it, and files the result once more (`DotMmBackbone._post_submit`). Once, not a loop: if the queue is still missing (the owner's 50-playlist cap, say) the second 404 is the answer. A queue this backbone never declared cannot be, and its 404 is passed on with no define sent. This is what saves a match filed while the boot-time `define` is still in flight: `define` records its rows before it sends anything.
 
-The site hard-codes what `DotMatchmakingConfig` lets a game change (`src/types/rating/glicko2.ts`: `GLICKO_TAU` 0.5, `RATING_INACTIVITY_PERIOD_DAYS` 14, `RATING_MIN_PARTICIPATION` 0.25, and a leaver always rated as having lost, in `RateSubmission`). `define` has no field for any of them, and the site's schema strips keys it does not know, so sending them would be silently ignored, not stored. A game that changes one rates one way on a self-hosted server and another way online.
+## Rating parity: the config's rules go with the declaration
 
-Until the site takes them, `DotMmBackbone.define(playlists, config)` logs a WARN (channel `matchmaking.backbone`) when a ranked queue is declared under a config that differs, naming each difference (`DotMmBackbone.parity_gaps`), and still declares the queue. It sends nothing new. The site half of the fix: accept `tau`, `ratingPeriodDays`, `minParticipation` and `leaverTakesLoss` per playlist in `RatingDefineInput`, store them on `RatingPlaylist`, and pass them to `RateSubmission` and `RatingAt`; then `define` sends them and the warning goes.
+`define` takes four optional per-playlist rules (website-city 39a7dea0a, on main): `tau` (above 0, at most 3), `ratingPeriodDays` (above 0, at most 3650), `minParticipation` (0 to 1) and `leaverTakesLoss`. The site stores them on `RatingPlaylist` and rates that queue's results with them. Omitted on create is the site's default (0.5, 14, 0.25, true, which are `DotMatchmakingConfig`'s defaults too); omitted on update keeps what is stored. **The site needs `prisma db push` on the deploy that brings this in.**
+
+`DotMmBackbone.define(playlists, config)` sends `config.tau`, `inactivity_period_days`, `min_participation` and `leaver_takes_loss` with every queue, and refuses (before sending) a config outside the site's bounds (`config_problem`). It no longer warns. A site from before the change drops the four keys unread (its schema is a plain zod object, which strips unknown keys), so the declaration still lands there and the queue is rated by the defaults; `DotMmBackbone.parity_gaps(config)` still names how a config differs from those defaults.
 
 ## Where matchmaking would run on the site
 

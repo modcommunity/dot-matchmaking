@@ -16,7 +16,7 @@ extends Node
 ## [/codeblock]
 
 const SECTIONS := 9
-const CHECKS := 110
+const CHECKS := 119
 
 var _passed := 0
 var _failed := 0
@@ -414,9 +414,16 @@ class FakeBackbone:
 	## What a failing answer's body was; DotHttp keeps it as the error's detail.
 	var fail_body: String = "{}"
 	var answer: Dictionary = {}
+	## Answers to give first, one per post, each [status, body]; then [member status].
+	var script_answers: Array = []
 
 	func post_integration(path: String, body: Dictionary) -> DotResult:
-		posts.append([path, body])
+		posts.append([path, body.duplicate(true)])
+		if not script_answers.is_empty():
+			var a: Array = script_answers.pop_front()
+			if int(a[0]) != 200:
+				return DotResult.failure(DotError.from_http(int(a[0]), str(a[1])))
+			return DotResult.success(answer)
 		if status != 200:
 			return DotResult.failure(DotError.from_http(status, fail_body))
 		return DotResult.success(answer)
@@ -539,14 +546,51 @@ func _test_site_rules() -> void:
 	_check(not r.ok and r.error.message.contains("no rating routes yet"), "and Next's HTML not-found page means the route is missing")
 	fake.status = 200
 
-	# Rating parity: warned about, not sent.
+	# A result filed before its queue is declared: declare it, file again, once.
+	var undeclared := '{"error":"No playlist \\"duel\\" — declare it with rating/define first."}'
+	var rules := DotMatchmakingConfig.new()
+	rules.tau = 0.7
+	var rb := FakeBackbone.new()
+	var rstore := DotMmRatingStore.new()
+	var rbb := DotMmBackbone.new(rb, rstore)
+	rb.answer = {"ok": true, "ratings": {"k1": {"rating": 1530.0, "deviation": 170.0, "volatility": 0.06, "games": 1}}}
+	await rbb.define([DotMmPlaylist.of(&"duel", 2, 1)], rules)
+	rb.posts.clear()
+	rb.script_answers = [[404, undeclared]]
+	r = await rbb.submit(&"duel", "m-early", [["k1"], ["k2"]], [1, 2])
+	var paths := rb.posts.map(func(p: Array) -> String: return str(p[0]))
+	_check(r.ok and paths == [DotMmBackbone.SUBMIT_PATH, DotMmBackbone.DEFINE_PATH, DotMmBackbone.SUBMIT_PATH],
+		"a 404 for an undeclared queue declares it and files the result again")
+	_check(rstore.fetch("k1", &"duel").rating == 1530.0 and rbb.pending_count() == 0, "and the retried result's ratings are stored")
+	var redefined: Dictionary = (rb.posts[1][1].get("playlists", [{}]) as Array)[0] if rb.posts.size() > 1 else {}
+	_check(str(redefined.get("id", "")) == "duel" and is_equal_approx(float(redefined.get("tau", 0.0)), 0.7), "declaring it as define last did, rules included")
+	rb.posts.clear()
+	rb.script_answers = [[404, undeclared], [200, ""], [404, undeclared]]
+	r = await rbb.submit(&"duel", "m-twice", [["k1"], ["k2"]], [1, 2])
+	_check(not r.ok and rb.posts.size() == 3 and r.error.message.contains("No playlist"), "once: a queue still missing after that is the second answer, not a loop")
+	rb.posts.clear()
+	rb.script_answers = [[404, undeclared.replace("duel", "solo")]]
+	r = await rbb.submit(&"solo", "m-never", [["k1"], ["k2"]], [1, 2])
+	_check(not r.ok and rb.posts.size() == 1 and r.error.message.contains("No playlist"), "a queue this backbone never declared is passed on, with no define sent")
+	rb.posts.clear()
+	rb.script_answers = [[404, '{"error":"This app no longer exists."}']]
+	r = await rbb.submit(&"duel", "m-noapp", [["k1"], ["k2"]], [1, 2])
+	_check(not r.ok and rb.posts.size() == 1, "nor for the site's other 404s")
+	rb.posts.clear()
+	rb.script_answers = [[503, ""]]
+	await rbb.submit(&"duel", "m-later", [["k1"], ["k2"]], [1, 2])
+	rb.script_answers = [[404, undeclared]]
+	r = await rbb.flush()
+	_check(r.ok and int(r.value) == 1 and rbb.pending_count() == 0 and rb.posts.size() == 4, "and a retried result meets the same 404 the same way")
+
+	# Rating rules: sent with the declaration, so the site rates as this config does.
 	var cfg := DotMatchmakingConfig.new()
-	_check(DotMmBackbone.parity_gaps(cfg).is_empty(), "the default config rates as the site does")
+	_check(DotMmBackbone.parity_gaps(cfg).is_empty(), "the default config is the site's default")
 	cfg.tau = 0.7
 	cfg.inactivity_period_days = 30.0
 	cfg.min_participation = 0.5
 	cfg.leaver_takes_loss = false
-	_check(DotMmBackbone.parity_gaps(cfg).size() == 4, "and all four differences the site cannot follow are named")
+	_check(DotMmBackbone.parity_gaps(cfg).size() == 4, "and all four differences from it are named")
 	var warned: Array = []
 	var sink := func(rec: Dictionary) -> void:
 		if int(rec["level"]) == DotLog.Level.WARN and str(rec["channel"]) == DotMmBackbone.CHANNEL:
@@ -557,19 +601,23 @@ func _test_site_rules() -> void:
 	DotLog.print_to_stdout = false
 	fake.posts.clear()
 	await bb.define([DotMmPlaylist.of(&"duel", 2, 1)], cfg)
-	var ranked_warns := warned.size()
-	var unranked := DotMmPlaylist.of(&"casual", 2, 1)
-	unranked.ranked = false
-	await bb.define([unranked], cfg)
-	var unranked_warns := warned.size() - ranked_warns
-	await bb.define([DotMmPlaylist.of(&"duel", 2, 1)], DotMatchmakingConfig.new())
-	var default_warns := warned.size() - ranked_warns - unranked_warns
+	await bb.define([DotMmPlaylist.of(&"duel", 2, 1)])
 	DotLog.print_to_stdout = old_stdout
 	DotLog.clear_channel_level(DotMmBackbone.CHANNEL)
 	DotLog.remove_sink(sink)
-	_check(ranked_warns == 1 and unranked_warns == 0 and default_warns == 0, "define warns once for a ranked queue under a config the site will not follow, and only then")
 	var sent_row: Dictionary = (fake.posts[0][1]["playlists"] as Array)[0]
-	_check(fake.posts.size() == 3 and not sent_row.has("tau") and sent_row.size() == 7, "and still declares it, with no field the site does not have")
+	_check(fake.posts.size() == 2 and is_equal_approx(float(sent_row.get("tau", 0.0)), 0.7)
+		and is_equal_approx(float(sent_row.get("ratingPeriodDays", 0.0)), 30.0)
+		and is_equal_approx(float(sent_row.get("minParticipation", 0.0)), 0.5)
+		and sent_row.get("leaverTakesLoss") == false and sent_row.size() == 11,
+		"define sends the config's four rating rules with each queue")
+	_check(warned.is_empty(), "and no longer warns that the site rates by its own")
+	var bare_row: Dictionary = (fake.posts[1][1]["playlists"] as Array)[0]
+	_check(not bare_row.has("tau") and bare_row.size() == 7, "with no config it sends none, and the site keeps what it has")
+	fake.posts.clear()
+	cfg.tau = 4.0
+	r = await bb.define([DotMmPlaylist.of(&"duel", 2, 1)], cfg)
+	_check(not r.ok and fake.posts.is_empty() and r.error.message.contains("tau"), "a rule outside the site's bounds is refused here, naming it")
 
 
 # --- helpers ------------------------------------------------------------------
