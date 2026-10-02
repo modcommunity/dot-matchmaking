@@ -90,6 +90,9 @@ var _pending: Array = []
 var _declared: Dictionary = {}
 var sent: int = 0
 var dropped: int = 0
+## Kept results the site then refused outright (see [method is_refused]), let go by
+## [method flush] so the ones behind them can be sent.
+var refused: int = 0
 var failures: int = 0
 
 
@@ -280,9 +283,10 @@ func submit(playlist_id: StringName, match_id: String, sides: Array, placements:
 		"sides": body_sides,
 		"placements": placements,
 	}
-	var res := await _post_submit(body)
+	var raw := await _post_submit(body)
+	var res := _explain(raw, SCOPE_WRITE)
 	if not res.ok:
-		if res.is_retryable():
+		if raw.is_retryable() and not is_refused(raw):
 			_pending.append(body)
 			while _pending.size() > MAX_PENDING:
 				_pending.pop_front()
@@ -291,12 +295,24 @@ func submit(playlist_id: StringName, match_id: String, sides: Array, placements:
 	return _absorb(playlist_id, res.value)
 
 
-## Retries results that failed to send, oldest first, stopping at the first failure.
+## Retries results that failed to send, oldest first, stopping at the first failure that
+## may pass later (unreachable, 5xx, 429, a credential or route problem). One the site
+## refused outright ([method is_refused]: a 400, a queue still undeclared) would be refused
+## every time and hold every result behind it, so it is let go, counted in [member refused].
 func flush() -> DotResult:
 	var done := 0
 	while not _pending.is_empty():
 		var body: Dictionary = _pending[0]
-		var res := await _post_submit(body)
+		var raw := await _post_submit(body)
+		if not raw.ok and is_refused(raw):
+			_pending.pop_front()
+			refused += 1
+			DotLog.warn(CHANNEL, "a kept result was refused by the backbone and is let go", {
+				"playlist": str(body.get("playlist", "")), "match": str(body.get("matchId", "")),
+				"why": str(_explain(raw, SCOPE_WRITE).error),
+			})
+			continue
+		var res := _explain(raw, SCOPE_WRITE)
 		if not res.ok:
 			return res if done == 0 else DotResult.success(done)
 		_pending.pop_front()
@@ -353,19 +369,33 @@ func _absorb(playlist_id: StringName, value: Variant) -> DotResult:
 
 ## One submit, and on the site's "no such playlist" a define of that one queue and one more
 ## submit. Not a loop: a queue the site still does not have after that (refused for the
-## owner's cap, say) is the second answer, returned.
+## owner's cap, say) is the second answer, returned. Returned as the client answered (the
+## caller [method _explain]s it), so the caller can still tell what the site said.
 func _post_submit(body: Dictionary) -> DotResult:
 	var res := await _post_raw(SUBMIT_PATH, body)
 	var playlist := str(body.get("playlist", ""))
 	if res.ok or not is_undeclared(res) or not _declared.has(playlist):
-		return _explain(res, SCOPE_WRITE)
+		return res
 	DotLog.info(CHANNEL, "a result came before its queue was declared; declaring it and filing again", {
 		"playlist": playlist, "match": str(body.get("matchId", "")),
 	})
-	var defined := await _post(DEFINE_PATH, {"playlists": [_declared[playlist]]})
+	var defined := await _post_raw(DEFINE_PATH, {"playlists": [_declared[playlist]]})
 	if not defined.ok:
 		return defined
-	return await _post(SUBMIT_PATH, body)
+	return await _post_raw(SUBMIT_PATH, body)
+
+
+## Whether [param res], as the client answered it, is the site refusing the body itself, so
+## that sending it again gets the same answer: a 4xx other than 401, 403, 408 and 429, and of
+## the 404s only its "No playlist" (Next's page or a missing app is not about the body).
+## dot-core counts any non-5xx status but those as retryable, so this is checked first.
+static func is_refused(res: DotResult) -> bool:
+	if res == null or res.ok or res.error == null:
+		return false
+	var status := res.error.http_status
+	if status < 400 or status >= 500 or status in [401, 403, 408, 429]:
+		return false
+	return status != 404 or is_undeclared(res)
 
 
 ## Whether [param res], as the client answered it (before [method _explain]), is the site saying a playlist was never declared: its own JSON 404,

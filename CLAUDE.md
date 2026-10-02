@@ -68,7 +68,7 @@ A body the site rejects is a 400, and a 400 is not retried: the match is gone. S
 
 ### A result can arrive before its queue
 
-The site answers a submit for an undeclared queue with a 404 (`No playlist …`), and a 404 is not kept for retry. So the backbone remembers every row `define` sends (before sending it), and on that 404 declares the one queue again and files the result once more. Once: a second 404 is the answer.
+The site answers a submit for an undeclared queue with a 404 (`No playlist …`), and a 404 is not kept for retry. So the backbone remembers every row `define` sends (before sending it), and on that 404 declares the one queue again and files the result once more. Once: a second 404 is the answer. And a kept result the site then refuses outright is let go by `flush` (counted in `refused`), not left at the head of the queue holding every result behind it: dot-core calls a 400 retryable, the backbone does not (`is_refused`).
 
 ### The store is synchronous
 

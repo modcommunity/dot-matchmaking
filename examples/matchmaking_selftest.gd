@@ -583,6 +583,51 @@ func _test_site_rules() -> void:
 	r = await rbb.flush()
 	_check(r.ok and int(r.value) == 1 and rbb.pending_count() == 0 and rb.posts.size() == 4, "and a retried result meets the same 404 the same way")
 
+	# A kept result the site refuses outright would be refused every time: let it go, so
+	# the ones behind it are sent. dot-core counts a 400 as retryable; the site does not.
+	var pair := [["k1"], ["k2"]]
+	rb.posts.clear()
+	rb.script_answers = [[400, '{"error":"Side 1 has 2 players; this playlist plays 1."}']]
+	r = await rbb.submit(&"duel", "m-shape", pair, [1, 2])
+	_check(not r.ok and rbb.pending_count() == 0, "a 400 is not kept for retry: it would be refused again")
+	rb.script_answers = [[503, ""], [503, ""]]
+	await rbb.submit(&"duel", "m-a", pair, [1, 2])
+	await rbb.submit(&"duel", "m-b", pair, [1, 2])
+	rb.posts.clear()
+	rb.script_answers = [[400, '{"error":"Invalid payload."}']]
+	var warned_before: Array = []
+	var catch_warn := func(rec: Dictionary) -> void:
+		if int(rec["level"]) == DotLog.Level.WARN and str(rec["channel"]) == DotMmBackbone.CHANNEL:
+			warned_before.append(rec)
+	DotLog.add_sink(catch_warn)
+	DotLog.set_channel_level(DotMmBackbone.CHANNEL, DotLog.Level.WARN)
+	var quiet := DotLog.print_to_stdout
+	DotLog.print_to_stdout = false
+	r = await rbb.flush()
+	_check(r.ok and int(r.value) == 1 and rbb.pending_count() == 0 and rbb.refused == 1 and rb.posts.size() == 2,
+		"a kept result the site refuses is let go, and the one behind it is sent")
+	_check(warned_before.size() == 1, "saying so")
+	rb.script_answers = [[503, ""]]
+	await rbb.submit(&"duel", "m-c", pair, [1, 2])
+	rb.script_answers = [[404, undeclared], [200, ""], [404, undeclared]]
+	r = await rbb.flush()
+	_check(r.ok and rbb.pending_count() == 0 and rbb.refused == 2, "as is one whose queue the site still lacks after declaring it")
+	DotLog.print_to_stdout = quiet
+	DotLog.clear_channel_level(DotMmBackbone.CHANNEL)
+	DotLog.remove_sink(catch_warn)
+	rb.script_answers = [[503, ""]]
+	await rbb.submit(&"duel", "m-d", pair, [1, 2])
+	rb.script_answers = [[403, '{"error":"Missing scope."}']]
+	r = await rbb.flush()
+	_check(not r.ok and rbb.pending_count() == 1 and rbb.refused == 2, "while a credential problem keeps it, to send once that is fixed")
+	rb.script_answers = [[404, "<!DOCTYPE html><html>"]]
+	r = await rbb.flush()
+	_check(not r.ok and rbb.pending_count() == 1, "and so does a site without the routes")
+	r = await rbb.flush()
+	_check(r.ok and rbb.pending_count() == 0, "which then goes")
+	_check(DotMmBackbone.is_refused(DotResult.failure(DotError.from_http(422, ""))) and not DotMmBackbone.is_refused(DotResult.failure(DotError.from_http(429, "")))
+		and not DotMmBackbone.is_refused(DotResult.failure(DotError.from_http(503, ""))), "refused is a 4xx about the body, not a 429 or a 5xx")
+
 	# Rating rules: sent with the declaration, so the site rates as this config does.
 	var cfg := DotMatchmakingConfig.new()
 	_check(DotMmBackbone.parity_gaps(cfg).is_empty(), "the default config is the site's default")
