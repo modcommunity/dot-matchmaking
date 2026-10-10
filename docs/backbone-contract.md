@@ -1,8 +1,10 @@
 # The backbone contract
 
+The rating routes on website-city that `DotMmBackbone` speaks, the rules both sides check, and what each failure means. The rules are one line each in [CLAUDE.md](../CLAUDE.md).
+
 Before these routes, website-city had no skill rating of any kind: no ELO, MMR, Glicko or TrueSkill in `src`, `prisma` or `docs` (`prisma/models/rating.prisma` is thumbs up and down on content). What the site calls "matchmaking" is `PartySearch`, which finds a **server** for a party by loosening the party's criteria one step per pass. There is still no player queue on the site.
 
-These routes were added for dot-matchmaking on website-city branch `feat/game-backbone` (not yet merged or deployed), shaped deliberately like the `stats/*` routes dot-stats already speaks. The site's Glicko-2 is a separate implementation and is tested against the same figures as this addon's; driven from Godot against a live dev server, the rating the site answered for a first win was 1662.3109, the same as `DotMmGlicko2.rate_match` computes locally.
+These routes were added to website-city for dot-matchmaking and are on its main branch (`src/app/api/integration/v1/rating/`), shaped deliberately like the `stats/*` routes dot-stats already speaks. The site's Glicko-2 is a separate implementation and is tested against the same figures as this addon's; driven from Godot against a live dev server, the rating the site answered for a first win was 1662.3109, the same as `DotMmGlicko2.rate_match` computes locally.
 
 One thing the site does that a client must allow for: its integration handler coerces every all-digit query value to a number. `rating/players` accepts that for its string fields; a GET should still carry its nonce in the `x-tmc-nonce` header, as `DotBackboneClient.get_integration` does.
 
@@ -78,7 +80,7 @@ What is kept for retry is only what may pass later: unreachable, a 5xx, a 429, a
 
 ## Rating parity: the config's rules go with the declaration
 
-`define` takes four optional per-playlist rules (website-city 39a7dea0a, on main): `tau` (above 0, at most 3), `ratingPeriodDays` (above 0, at most 3650), `minParticipation` (0 to 1) and `leaverTakesLoss`. The site stores them on `RatingPlaylist` and rates that queue's results with them. Omitted on create is the site's default (0.5, 14, 0.25, true, which are `DotMatchmakingConfig`'s defaults too); omitted on update keeps what is stored. **The site needs `prisma db push` on the deploy that brings this in.**
+`define` takes four optional per-playlist rules: `tau` (above 0, at most 3), `ratingPeriodDays` (above 0, at most 3650), `minParticipation` (0 to 1) and `leaverTakesLoss`. The site stores them on `RatingPlaylist` and rates that queue's results with them. Omitted on create is the site's default (0.5, 14, 0.25, true, which are `DotMatchmakingConfig`'s defaults too); omitted on update keeps what is stored.
 
 `DotMmBackbone.define(playlists, config)` sends `config.tau`, `inactivity_period_days`, `min_participation` and `leaver_takes_loss` with every queue, and refuses (before sending) a config outside the site's bounds (`config_problem`). It no longer warns. A site from before the change drops the four keys unread (its schema is a plain zod object, which strips unknown keys), so the declaration still lands there and the queue is rated by the defaults; `DotMmBackbone.parity_gaps(config)` still names how a config differs from those defaults.
 
