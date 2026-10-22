@@ -1,0 +1,20 @@
+# comments
+# Baselines only shrink: scripts/<gate> --update lowers or drops entries and refuses to add.
+addons/dot_matchmaking/dot_matchmaking_config.gd::long_block	5
+addons/dot_matchmaking/dot_matchmaking_plugin.gd::long_block	1
+addons/dot_matchmaking/net/dot_mm_backbone.gd::history	1
+addons/dot_matchmaking/net/dot_mm_backbone.gd::long_block	10
+addons/dot_matchmaking/queue/dot_mm_balance.gd::long_block	1
+addons/dot_matchmaking/queue/dot_mm_match.gd::long_block	1
+addons/dot_matchmaking/queue/dot_mm_playlist.gd::long_block	7
+addons/dot_matchmaking/queue/dot_mm_queue.gd::long_block	2
+addons/dot_matchmaking/queue/dot_mm_ticket.gd::long_block	2
+addons/dot_matchmaking/rating/dot_mm_glicko2.gd::long_block	6
+addons/dot_matchmaking/rating/dot_mm_rating.gd::long_block	4
+addons/dot_matchmaking/rating/dot_mm_rating_store.gd::long_block	1
+addons/dot_matchmaking/rating/dot_mm_rating_store_file.gd::long_block	2
+addons/dot_matchmaking/runtime/dot_matchmaker.gd::banner	4
+addons/dot_matchmaking/runtime/dot_matchmaker.gd::long_block	5
+addons/dot_matchmaking/runtime/dot_mm_allocator_list.gd::long_block	1
+examples/matchmaking_selftest.gd::banner	10
+examples/matchmaking_selftest.gd::long_block	1

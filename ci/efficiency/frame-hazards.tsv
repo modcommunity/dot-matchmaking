@@ -1,0 +1,5 @@
+# frame-hazards
+# Baselines only shrink: scripts/<gate> --update lowers or drops entries and refuses to add.
+addons/dot_matchmaking/runtime/dot_matchmaker.gd::_expire_pending::alloc_dict	1
+addons/dot_matchmaking/runtime/dot_matchmaker.gd::_finish::string_build	1
+addons/dot_matchmaking/runtime/dot_matchmaker.gd::run_pass::alloc_array	1
