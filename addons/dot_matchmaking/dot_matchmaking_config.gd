@@ -61,6 +61,44 @@ func cli_prefix() -> String:
 	return "--mm-"
 
 
+## The addon name [DotAddonConfig] turns into the folder `dot_matchmaking`.
+const CFG_ADDON := "dot-matchmaking"
+
+
+## Applies [param file_name] from `cfg/addons/dot_matchmaking/`, then the operator's `cfg/server/dot_matchmaking/`.
+## A flat [param legacy_dir]/[param file_name] is still read (one WARN) while no new copy exists.
+## Keys not starting `mm_` belong to the deployment and are skipped; secrets stay file-only.
+func apply_cfg_file(file_name: String = "matchmaking.yml", legacy_dir: String = "res://cfg") -> DotResult:
+	return DotAddonConfig.apply_file(CFG_ADDON, file_name, legacy_dir, _apply_cfg_values)
+
+
+func _apply_cfg_values(values: Dictionary, path: String) -> PackedStringArray:
+	var own := {}
+	var keys := config_keys()
+	for raw in values:
+		var name := String(raw)
+		if not name.begins_with("mm_"):
+			continue
+		var prop := name.trim_prefix("mm_")
+		if keys.has(prop):
+			own[prop] = values[raw]
+	return apply_dictionary(own, path)
+
+
+## [method apply_cfg_file], then the environment, the command line and validation.
+func load_cfg(file_name: String = "matchmaking.yml", legacy_dir: String = "res://cfg") -> DotResult:
+	unknown_keys = PackedStringArray()
+	var file_res := apply_cfg_file(file_name, legacy_dir)
+	if not file_res.ok:
+		return file_res
+	apply_env()
+	apply_cli()
+	var valid := validate()
+	if not valid.ok:
+		return valid.wrap("Configuration is invalid.")
+	return DotResult.success(self)
+
+
 func validate() -> DotResult:
 	if tau <= 0.0:
 		return DotResult.fail(DotError.CODE_INVALID, "tau must be positive")

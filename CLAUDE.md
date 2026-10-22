@@ -29,6 +29,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first, and [docs/backbone.md](../..
 | `net/dot_mm_backbone.gd` | `DotMmBackbone`: `define`, `submit`, `refresh`, `flush`, and the pre-send checks |
 | `dot_matchmaking_config.gd` | `DotMatchmakingConfig`: rating rules (`tau`, inactivity period, participation, leavers) |
 | `examples/matchmaking_selftest.tscn` | the suite: no network, no wall clock |
+| `examples/cfg_selftest.tscn` | `matchmaking.yml` through `DotMatchmakingConfig.load_cfg`: `cfg/addons/dot_matchmaking/`, `cfg/server/dot_matchmaking/` over it, the flat `cfg/matchmaking.yml` shim (WARN once, removed 2026-12-31) |
 
 Paths except `examples/` are in `addons/dot_matchmaking/`.
 
