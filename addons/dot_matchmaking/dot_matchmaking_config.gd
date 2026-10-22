@@ -65,7 +65,7 @@ func cli_prefix() -> String:
 const CFG_ADDON := "dot-matchmaking"
 
 
-## Applies [param file_name] from `cfg/addons/dot_matchmaking/`, then the operator's `cfg/server/dot_matchmaking/`.
+## Applies [param file_name] from `cfg/addons/dot_matchmaking/`, then the operator's `cfg/server/addons/dot_matchmaking/`.
 ## A flat [param legacy_dir]/[param file_name] is still read (one WARN) while no new copy exists.
 ## Keys not starting `mm_` belong to the deployment and are skipped; secrets stay file-only.
 func apply_cfg_file(file_name: String = "matchmaking.yml", legacy_dir: String = "res://cfg") -> DotResult:
