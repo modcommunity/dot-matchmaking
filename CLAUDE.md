@@ -35,7 +35,7 @@ Paths except `examples/` are in `addons/dot_matchmaking/`.
 
 ## Running and testing
 
-The family's two steps ([game-dev/CLAUDE.md](../../CLAUDE.md#validating-anything)), then `timeout 120 godot --headless --path . res://examples/matchmaking_selftest.tscn`. Section 1 (the paper's worked example, exact figures to 0.001) is the one to keep: every other check compares ratings with each other and would pass against an arithmetic slip. The suite is the only thing that has exercised the queue; nothing here has been found by a real queue under load or a real client. A change to a request shape wants a run against a dev site.
+The family's two steps ([family CLAUDE.md](../../CLAUDE.md#validating-anything)), then `timeout 120 godot --headless --path . res://examples/matchmaking_selftest.tscn`. Section 1 (the paper's worked example, exact figures to 0.001) is the one to keep: every other check compares ratings with each other and would pass against an arithmetic slip. The suite is the only thing that has exercised the queue; nothing here has been found by a real queue under load or a real client. A change to a request shape wants a run against a dev site.
 
 ## Rules that bite
 
