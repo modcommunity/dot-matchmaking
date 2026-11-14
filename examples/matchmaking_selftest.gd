@@ -16,7 +16,7 @@ extends Node
 ## [/codeblock]
 
 const SECTIONS := 9
-const CHECKS := 127
+const CHECKS := 136
 
 var _passed := 0
 var _failed := 0
@@ -311,6 +311,17 @@ func _test_accept_step() -> void:
 	_check(((t.members[0] as Dictionary)["rating"] as DotMmRating).rating == 2500.0, "at the rating the store holds, not one anybody sent")
 	_check(not mm.enqueue("t-rich2", &"duel", PackedStringArray(["rich"]), [{"eu": 20}]).ok, "and cannot queue twice")
 	_check(mm.cancel("t-rich"), "a ticket can be cancelled")
+
+	mm.config.max_tickets = 1
+	_check(mm.enqueue("t-cap1", &"duel", PackedStringArray(["cap1"]), [{"eu": 20}]).ok, "max_tickets 1 takes the first ticket")
+	_check(not mm.enqueue("t-cap2", &"duel", PackedStringArray(["cap2"]), [{"eu": 20}]).ok, "and refuses the second")
+	mm.config.max_tickets = 0
+	_check(mm.enqueue("t-cap2", &"duel", PackedStringArray(["cap2"]), [{"eu": 20}]).ok, "max_tickets 0 is unlimited")
+	mm.config.max_tickets = -1
+	_check(not mm.config.validate().ok, "a negative max_tickets is refused")
+	mm.config.max_tickets = 10000
+	mm.cancel("t-cap1")
+	mm.cancel("t-cap2")
 
 	var found: Array = []
 	var ready: Array = []

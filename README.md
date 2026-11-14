@@ -77,7 +77,7 @@ Layered like every Dot config: defaults, JSON or `matchmaking.yml`, `DOT_MM_*` e
 | Setting | Default | What it does |
 | --- | --- | --- |
 | `pass_interval_sec` | 1.0 | Seconds between queue passes. |
-| `max_tickets` | 10000 | Tickets held across every queue. A new ticket is refused past this. |
+| `max_tickets` | 10000 | Tickets held across every queue. A new ticket is refused past this. 0 = unlimited. |
 | `tau` | 0.5 | Glicko-2 system constant. Lower is steadier. |
 | `inactivity_period_days` | 14.0 | Days idle that count as one rating period. |
 | `ratings_file` | `user://matchmaking/ratings.json` | Where local ratings are kept. |

@@ -163,7 +163,7 @@ func enqueue(ticket_id: String, playlist_id: StringName, player_ids: PackedStrin
 			"every member needs latencies",
 			"%d members, %d latency reports" % [player_ids.size(), member_latencies.size()]
 		)
-	if _ticket_count() >= config.max_tickets:
+	if config.max_tickets > 0 and _ticket_count() >= config.max_tickets:
 		return DotResult.fail(DotError.CODE_RATE_LIMITED, "Matchmaking is full right now. Try again shortly.")
 
 	var now := _now()

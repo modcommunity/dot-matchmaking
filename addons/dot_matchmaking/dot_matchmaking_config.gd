@@ -18,8 +18,8 @@ extends DotConfig
 @export_range(0.1, 30.0, 0.1) var pass_interval_sec: float = 1.0
 
 ## Tickets held across every queue. Past this, a new ticket is refused rather than
-## accepted into a queue that will never reach it.
-@export_range(1, 100000, 1) var max_tickets: int = 10000
+## accepted into a queue that will never reach it. Default 10000, 0 = unlimited.
+@export_range(0, 100000, 1, "or_greater") var max_tickets: int = 10000
 
 @export_group("Ratings")
 
@@ -104,12 +104,15 @@ func validate() -> DotResult:
 		return DotResult.fail(DotError.CODE_INVALID, "tau must be positive")
 	if pass_interval_sec <= 0.0:
 		return DotResult.fail(DotError.CODE_INVALID, "a pass interval of zero is a busy loop")
+	if max_tickets < 0:
+		return DotResult.fail(DotError.CODE_INVALID, "max_tickets must be 0 (unlimited) or more", "got %d" % max_tickets)
 	return DotResult.success(null)
 
 
 func describe_lines(_redact_sensitive: bool = true) -> PackedStringArray:
 	var out := PackedStringArray()
-	out.append("matchmaking: a pass every %.1fs, up to %d tickets" % [pass_interval_sec, max_tickets])
+	out.append("matchmaking: a pass every %.1fs, %s" % [pass_interval_sec,
+		("up to %d tickets" % max_tickets) if max_tickets > 0 else "unlimited tickets"])
 	out.append("  glicko-2 tau %.2f, a rating period is %.0f days idle" % [tau, inactivity_period_days])
 	out.append("  participation under %.0f%% is not rated; leavers %s" % [
 		min_participation * 100.0, "take the loss" if leaver_takes_loss else "are not rated",
