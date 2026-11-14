@@ -16,14 +16,15 @@ extends RefCounted
 ## deterministic: the same tickets in the same order always give the same sides, so a
 ## server and a client explaining a match to a player agree about why.
 
-## Past this many tickets on two sides, stop enumerating.
+## Default for how many tickets on two sides are enumerated; [member DotMmPlaylist.exhaustive_limit] overrides it.
 const EXHAUSTIVE_LIMIT := 16
 
 
 ## [param sizes] and [param strengths] are per ticket; returns an Array of Arrays of ticket
 ## indexes, one per side, or an empty Array when the tickets cannot be packed at all —
 ## three parties of two cannot make two sides of three however they are arranged.
-static func split(sizes: Array, strengths: Array, sides: int, per_side: int) -> Array:
+## [param exhaustive_limit] is the most tickets on two sides that are enumerated; 0 = no limit.
+static func split(sizes: Array, strengths: Array, sides: int, per_side: int, exhaustive_limit: int = EXHAUSTIVE_LIMIT) -> Array:
 	var n := sizes.size()
 	var total := 0
 	for s in sizes:
@@ -31,7 +32,7 @@ static func split(sizes: Array, strengths: Array, sides: int, per_side: int) -> 
 	if total != sides * per_side:
 		return []
 
-	if sides == 2 and n <= EXHAUSTIVE_LIMIT:
+	if sides == 2 and (exhaustive_limit <= 0 or n <= exhaustive_limit):
 		return _exhaustive_two(sizes, strengths, per_side)
 	return _greedy(sizes, strengths, sides, per_side)
 

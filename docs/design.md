@@ -24,7 +24,7 @@ The anchor is always the longest-waiting ticket, which is the only order that ca
 
 ## Balancing places whole tickets
 
-`DotMmBalance` splits whole tickets (a solo player or a party) into sides: exhaustive for two sides up to `EXHAUSTIVE_LIMIT` (16) tickets, greedy plus swaps otherwise, and deterministic either way. `(mask & (1 << i)) == 0` is parenthesised deliberately: GDScript binds `&` tighter than `==` (`2 & 2 == 0` is `false`), the opposite of C, so the parentheses make the line read the same to somebody from either language.
+`DotMmBalance` splits whole tickets (a solo player or a party) into sides: exhaustive for two sides up to a playlist's `exhaustive_limit` (default 16, 0 = always) tickets, greedy plus swaps otherwise, and deterministic either way. `(mask & (1 << i)) == 0` is parenthesised deliberately: GDScript binds `&` tighter than `==` (`2 & 2 == 0` is `false`), the opposite of C, so the parentheses make the line read the same to somebody from either language.
 
 ## The accept step keeps everybody's place
 

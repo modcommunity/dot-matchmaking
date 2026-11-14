@@ -42,6 +42,12 @@ extends Resource
 ## make, and ranked queues commonly cap it below a whole team for that reason.
 @export_range(0, 64, 1) var max_party_size: int = 0
 
+## With two sides, up to this many tickets are balanced by trying every split (the best
+## answer, a few milliseconds at 16). More tickets fall back to a fast greedy search.
+## 0 = always try every split: the cost doubles with each extra ticket, so use it only
+## for small team sizes.
+@export_range(0, 40, 1) var exhaustive_limit: int = 16
+
 @export_group("Skill")
 
 ## Whether this queue moves ratings. An unranked queue still MATCHES by skill — against

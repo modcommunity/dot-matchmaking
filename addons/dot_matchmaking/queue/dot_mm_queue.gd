@@ -233,7 +233,7 @@ func _try(chosen: Array, quality_floor: float) -> DotMmMatch:
 		sizes.append(t.size())
 		strengths.append(t.matching_rating(pl.party_skill_blend, pl.premade_bonus) * t.size())
 
-	var split := DotMmBalance.split(sizes, strengths, pl.teams, pl.team_size)
+	var split := DotMmBalance.split(sizes, strengths, pl.teams, pl.team_size, pl.exhaustive_limit)
 	if split.is_empty():
 		return null
 

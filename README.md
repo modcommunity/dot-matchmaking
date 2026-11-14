@@ -1,27 +1,23 @@
-This is the **matchmaking** asset for TMC's **Dot** collection. It adds matchmaking and skill-based matchmaking to a game: players and parties queue, the queue finds fair matches in a region everybody can reach, everybody accepts, a server is found, and the result moves everybody's rating.
+# dot-matchmaking
 
-This collection of assets provides modular building blocks for creating games and applications within the TMC ecosystem, ensuring consistency and interoperability across all `dot-*` assets. This includes core functionality, networking, authentication, cloud integration, and more.
+Skill-based matchmaking for a Godot 4 game. Players and parties queue, the queue finds a fair match in a region everyone can reach, everyone accepts, a server is found, and the result moves everybody's rating. It needs only [dot-core](https://github.com/modcommunity/dot-core). Part of TMC's open source **Dot** collection (MIT licence).
 
-**These assets are COMPLETELY OPEN SOURCE**. You are free to use, modify, and distribute them under the terms of the MIT license. The only thing not open source is the back-end web infrastructure. So if you opt into using your own authentication backend instead of integrating with TMC, you will need to build and integrate your own back-end infrastructure.
+> Built with Claude Code. Every addon has a headless test suite and the suites pass, but little of this has met real players yet. Please report rough edges.
 
-## From Maintainer & WARNING
-This asset, along with all the others, was built initially with **Claude Code** and will continue to be maintained and extended using it. This is because I (`gamemann`) cannot build the entire TMC platform alone (I wish I could lol).
+## Install
 
-**Please treat this as partially tested.** Every asset has its own headless test suite and those suites pass, but very little of this has been in front of real players yet. Expect rough edges, and please report anything you run into.
+Copy `addons/dot_matchmaking/` and dot-core's `addons/dot_core/` into your project and enable dot-matchmaking under **Project > Project Settings > Plugins**. dot-party is not needed (a party is a ticket with several ids on it), and dot-auth's client is used when present.
 
-## Ratings: Glicko-2, per queue
+## Ratings: Glicko-2, one per queue
 
-A single number says a newcomer and a thousand-game veteran on the same number are the same player, and puts the newcomer against people who will flatten them for the twenty games it takes that number to move. Glicko-2 keeps three: a **rating**, a **deviation** (how sure we are) and a **volatility** (how consistently they play). The deviation shrinks with every game and grows back with absence, so a newcomer and a returning player move quickly and a regular moves slowly.
+A single number treats a newcomer and a thousand-game veteran on the same number as the same player, and puts the newcomer against people who will flatten them for the twenty games it takes that number to move. Glicko-2 keeps three numbers: a rating, a deviation (how sure we are) and a volatility (how steady the player is). The deviation shrinks with every game and grows back with absence, so a newcomer or a returning player moves quickly and a regular moves slowly. The update is the published algorithm step for step, and the test suite checks it against the worked example in the Glicko-2 paper.
 
-The update is the published algorithm, step for step, and the suite checks it against the worked example in the Glicko-2 paper.
+- **Team games.** Every player on a side sees the expectation that the two sides' averages predict, while how far each one moves depends on their own deviation. Rating each player against the other side's average would punish a strong player for weak team-mates.
+- **One rating per queue.** Skill at two-a-side and at a twelve-player free-for-all are different facts. The number shown to players is the rating minus two deviations, so two lucky wins do not top a leaderboard.
+- **Partial matches.** Someone who connected for the last minute is rated for a fraction of the match, and not at all below `min_participation`.
+- **Leavers.** Someone who left a ranked match is rated as having lost it, fully (`leaver_takes_loss`). Otherwise leaving a losing match is free.
 
-**Team games** use one extension. The obvious one, rating each player against the other side's average, punishes a strong player for weak team-mates. Here every player on a side sees the expectation that the two sides' averages predict, while how far each one moves still depends on their own deviation.
-
-**A rating belongs to one queue.** Skill at a two-a-side mode and at a twelve-player free-for-all are different facts. The number shown to players is the rating minus two deviations — a value we are about 95% sure they are at least as good as — so two lucky wins do not top a leaderboard.
-
-Somebody who connected for the last minute of a match is rated for a fraction of it. Somebody who **left** a ranked match is rated as having lost it, fully, because otherwise leaving a losing match is free.
-
-## The queue: everything widens with time
+## The queue
 
 ```gdscript
 var duel := DotMmPlaylist.of(&"duel", 2, 1)        # two sides of one
@@ -38,29 +34,63 @@ mm.match_found.connect(func(m, deadline): show_accept_prompt(m, deadline))
 mm.match_ready.connect(func(m): send_everyone_to(m.allocation["address"]))
 ```
 
-A playlist is one thing a person can queue for. The accepted skill gap, the latency ceiling and the minimum match quality all **start strict and relax the longer somebody waits**. A single fixed tolerance either starves the players at the top and bottom of the ladder, who have nobody near them, or makes every match poor.
+A playlist is one thing a player can queue for. The accepted skill gap, the latency ceiling and the minimum match quality all start strict and relax the longer someone waits. A single fixed tolerance either starves players at the top and bottom of the ladder or makes every match poor.
 
-- **Oldest ticket first.** Each pass builds a match around whoever has waited longest. That order means nobody can be left waiting forever: whoever is stuck eventually becomes the oldest, and their window grows until it reaches somebody.
-- **Region first.** A ticket is only considered for a region it can reach within its **own** latency ceiling. A long wait makes the person who waited accept a worse match; it does not hand a newcomer eighty extra milliseconds.
-- **Parties are never split.** A party is one ticket. Its latency to a region is its worst member's, and its matching rating leans from its average towards its best player, because a strong player carries.
-- **Sides are balanced exhaustively** when that is cheap (two sides, up to sixteen tickets; this only picks the search method, it does not limit queue size) and greedily otherwise, always moving whole parties.
-- **Ratings come from the store, never from the client.** A client that could send its own rating could send any rating.
+- **Oldest ticket first.** Each pass builds a match around whoever has waited longest, so nobody waits forever.
+- **Region first.** A ticket is only considered for a region it can reach within its own latency ceiling. A long wait never hands a newcomer extra milliseconds.
+- **Parties are never split.** A party is one ticket. Its latency is its worst member's, and its matching rating leans from the average toward its best player.
+- **Balanced sides.** With two sides, up to `exhaustive_limit` tickets are split by trying every combination, which finds the best split. More tickets, or more than two sides, use a fast greedy search that moves whole parties. Both give the same answer for the same input.
+- **Ratings come from the store, never from the client.**
 
-## Accepting, and what happens when somebody does not
+## Accepting a match
 
-A found match waits for everybody to accept. If somebody declines or does not answer, that person is kept out of the queue for a while. **Everybody else goes back in at the time they originally queued**, so they are next rather than last. A party with one member who did not answer leaves together. A match with no free server falls through without punishing anybody.
+A found match waits for everyone to accept. Someone who declines or does not answer is kept out of the queue for `decline_cooldown_sec`. Everyone else goes back in at the time they originally queued, so they are next rather than last. A party with one member who did not answer leaves together. A match with no free server falls through without punishing anyone.
+
+## Settings
+
+### Per queue (`DotMmPlaylist`)
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| `teams`, `team_size` | 2, 5 | Number of sides and players per side. |
+| `max_party_size` | 0 | Largest party allowed. 0 = up to a whole team. |
+| `exhaustive_limit` | 16 | With two sides, the most tickets split by trying every combination. 0 = always try every combination (cost doubles per ticket, so only for small teams). |
+| `ranked` | true | Whether results move ratings. |
+| `placement_games` | 10 | Matches before a rating is shown. |
+| `skill_window` | 100.0 | Rating spread accepted at first. |
+| `skill_window_growth` | 5.0 | Spread added per second waited. |
+| `skill_window_max` | 800.0 | Widest the spread gets. |
+| `min_quality` | 0.6 | Worst match accepted at first: 1 is a coin toss, 0 a foregone conclusion. |
+| `min_quality_decay` | 0.004 | How much the quality bar drops per second waited. |
+| `party_skill_blend` | 0.5 | 0 = a party rates as its average, 1 = as its best player. |
+| `premade_bonus` | 20.0 | Rating added per party member beyond the first, because a premade coordinates. |
+| `max_latency_ms` | 80 | Latency ceiling at first. |
+| `latency_growth` | 2.0 | Milliseconds of extra tolerance per second waited. |
+| `max_latency_cap_ms` | 180 | The ceiling never goes past this. |
+| `accept_timeout_sec` | 20.0 | Seconds to accept a found match. 0 skips the step. |
+| `decline_cooldown_sec` | 60.0 | Seconds out of the queue after declining. |
+
+### Machinery (`DotMatchmakingConfig`)
+
+Layered like every Dot config: defaults, JSON or `matchmaking.yml`, `DOT_MM_*` environment, `--mm-*` command line.
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| `pass_interval_sec` | 1.0 | Seconds between queue passes. |
+| `max_tickets` | 10000 | Tickets held across every queue. A new ticket is refused past this. |
+| `tau` | 0.5 | Glicko-2 system constant. Lower is steadier. |
+| `inactivity_period_days` | 14.0 | Days idle that count as one rating period. |
+| `ratings_file` | `user://matchmaking/ratings.json` | Where local ratings are kept. |
+| `min_participation` | 0.25 | Participation below this is not rated. |
+| `leaver_takes_loss` | true | A ranked leaver is rated as having lost. |
 
 ## The website
 
-Ratings are the one number that decides who other people are made to play against, so on TMC **the website computes them, not the game server**. `DotMmBackbone` files the match result (sides, places, participation, leavers) and stores the ratings the website sends back. The website's rating routes were added for this asset, in the same shape as its statistics routes, and are merged to website-city's `main` (deployment is the operator's); [docs/backbone-contract.md](docs/backbone-contract.md) lists them. Against a live dev server of them, a result filed from Godot came back rated exactly as this asset rates it locally. Without them, and permanently for a self-hosted server, the matchmaker rates locally into a file.
+On TMC the website computes ratings, not the game server, because ratings decide who other people are made to play against. `DotMmBackbone` files the match result (sides, places, participation, leavers) and stores the ratings the website sends back. [docs/backbone-contract.md](docs/backbone-contract.md) lists the routes. Without them, and always on a self-hosted server, the matchmaker rates locally into a file.
 
-## Installing
+## More
 
-Copy `addons/dot_matchmaking/` and [`dot-core`](https://github.com/modcommunity/dot-core)'s `addons/dot_core/` into your project and enable it in **Project → Project Settings → Plugins**.
-
-## Dependencies
-
-[dot-core](https://github.com/modcommunity/dot-core). Nothing else. dot-party is not a dependency — a party is a ticket with several ids on it — and dot-auth's backbone client is reached by duck typing.
+[docs/design.md](docs/design.md) explains the choices.
 
 ## Licence
 
