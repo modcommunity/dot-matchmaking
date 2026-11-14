@@ -54,7 +54,7 @@ A found match waits for everyone to accept. Someone who declines or does not ans
 | --- | --- | --- |
 | `teams`, `team_size` | 2, 5 | Number of sides and players per side. |
 | `max_party_size` | 0 | Largest party allowed. 0 = up to a whole team. |
-| `exhaustive_limit` | 16 | With two sides, the most tickets split by trying every combination. 0 = always try every combination (cost doubles per ticket, so only for small teams). |
+| `exhaustive_limit` | 16 | With two sides, the most tickets split by trying every combination. 0 = always try every combination (cost doubles per ticket, so only for small teams; past 63 tickets it logs an error and goes greedy). |
 | `ranked` | true | Whether results move ratings. |
 | `placement_games` | 10 | Matches before a rating is shown. |
 | `skill_window` | 100.0 | Rating spread accepted at first. |

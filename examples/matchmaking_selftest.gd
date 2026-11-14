@@ -179,6 +179,16 @@ func _test_balance() -> void:
 	var again := DotMmBalance.split([1, 1, 1, 1], [2000.0, 1000.0, 1600.0, 1400.0], 2, 2)
 	_check(str(again) == str(split), "the same input gives the same sides, every time")
 
+	var unlimited := DotMmBalance.split([1, 1, 1, 1], [2000.0, 1000.0, 1600.0, 1400.0], 2, 2, 0)
+	_check(str(unlimited) == str(split), "exhaustive_limit 0 (unlimited) still enumerates a small split")
+	var greedy := DotMmBalance.split([1, 1, 1, 1], [2000.0, 1000.0, 1600.0, 1400.0], 2, 2, 2)
+	_check(greedy.size() == 2 and DotMmBalance.spread(greedy, [2000.0, 1000.0, 1600.0, 1400.0]) == 0.0, "a limit below the ticket count takes the greedy path and still balances")
+	var pl := DotMmPlaylist.of(&"caps", 2, 100)
+	_check(pl.exhaustive_limit == DotMmBalance.EXHAUSTIVE_LIMIT, "a playlist's exhaustive_limit defaults to 16")
+	_check(pl.validate().ok, "a side of 100 (past the inspector's 64) validates")
+	pl.exhaustive_limit = -1
+	_check(not pl.validate().ok, "a negative exhaustive_limit is refused, not clamped")
+
 
 # --- 4 ----------------------------------------------------------------------
 

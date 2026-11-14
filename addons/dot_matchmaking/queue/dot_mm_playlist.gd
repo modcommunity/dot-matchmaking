@@ -31,22 +31,22 @@ extends Resource
 @export_group("Shape")
 
 ## Sides. Two for most team games; the player count for a free-for-all of teams of one.
-@export_range(2, 64, 1) var teams: int = 2
+@export_range(2, 64, 1, "or_greater") var teams: int = 2
 
 ## People per side.
-@export_range(1, 64, 1) var team_size: int = 5
+@export_range(1, 64, 1, "or_greater") var team_size: int = 5
 
 ## The largest party this queue accepts. 0 means "up to a whole team".
 ##
 ## A full premade five against five strangers is the least fair match a team game can
 ## make, and ranked queues commonly cap it below a whole team for that reason.
-@export_range(0, 64, 1) var max_party_size: int = 0
+@export_range(0, 64, 1, "or_greater") var max_party_size: int = 0
 
-## With two sides, up to this many tickets are balanced by trying every split (the best
-## answer, a few milliseconds at 16). More tickets fall back to a fast greedy search.
-## 0 = always try every split: the cost doubles with each extra ticket, so use it only
-## for small team sizes.
-@export_range(0, 40, 1) var exhaustive_limit: int = 16
+## Most tickets on two sides that the balancer splits by trying every assignment (the best
+## split); past it, greedy plus swaps. Default 16, 0 = unlimited. The cost doubles per ticket:
+## 16 is a few milliseconds, 24 is seconds. Above 63 tickets enumeration cannot index them and
+## the balancer logs an error and goes greedy.
+@export_range(0, 63, 1, "or_greater") var exhaustive_limit: int = DotMmBalance.EXHAUSTIVE_LIMIT
 
 @export_group("Skill")
 
@@ -183,6 +183,8 @@ func validate() -> DotResult:
 			"the widest skill window is narrower than the first one",
 			"%s: %.0f < %.0f" % [id, skill_window_max, skill_window]
 		)
+	if exhaustive_limit < 0:
+		return DotResult.fail(DotError.CODE_INVALID, "exhaustive_limit is a ticket count, 0 = unlimited", "%s: %d" % [id, exhaustive_limit])
 	if max_latency_cap_ms < max_latency_ms:
 		return DotResult.fail(DotError.CODE_INVALID, "the latency cap is below the starting latency", String(id))
 	return DotResult.success(null)
