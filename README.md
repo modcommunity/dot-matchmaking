@@ -43,7 +43,7 @@ A playlist is one thing a person can queue for. The accepted skill gap, the late
 - **Oldest ticket first.** Each pass builds a match around whoever has waited longest. That order means nobody can be left waiting forever: whoever is stuck eventually becomes the oldest, and their window grows until it reaches somebody.
 - **Region first.** A ticket is only considered for a region it can reach within its **own** latency ceiling. A long wait makes the person who waited accept a worse match; it does not hand a newcomer eighty extra milliseconds.
 - **Parties are never split.** A party is one ticket. Its latency to a region is its worst member's, and its matching rating leans from its average towards its best player, because a strong player carries.
-- **Sides are balanced exhaustively** when that is cheap (two sides, up to sixteen tickets) and greedily otherwise, always moving whole parties.
+- **Sides are balanced exhaustively** when that is cheap (two sides, up to sixteen tickets; this only picks the search method, it does not limit queue size) and greedily otherwise, always moving whole parties.
 - **Ratings come from the store, never from the client.** A client that could send its own rating could send any rating.
 
 ## Accepting, and what happens when somebody does not
