@@ -36,10 +36,9 @@ extends Resource
 ## People per side.
 @export_range(1, 64, 1, "or_greater") var team_size: int = 5
 
-## The largest party this queue accepts. 0 means "up to a whole team".
-##
-## A full premade five against five strangers is the least fair match a team game can
-## make, and ranked queues commonly cap it below a whole team for that reason.
+## The largest party this queue accepts. 0 means "up to a whole team". A full premade five against five
+## strangers is the least fair match a team game can make, and ranked queues commonly cap it below a whole
+## team for that reason.
 @export_range(0, 64, 1, "or_greater") var max_party_size: int = 0
 
 ## Most tickets on two sides that the balancer splits by trying every assignment (the best

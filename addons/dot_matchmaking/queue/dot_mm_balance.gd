@@ -25,12 +25,9 @@ const EXHAUSTIVE_LIMIT := 16
 const EXHAUSTIVE_BITS := 63
 
 
-## [param sizes] and [param strengths] are per ticket; returns an Array of Arrays of ticket
-## indexes, one per side, or an empty Array when the tickets cannot be packed at all —
-## three parties of two cannot make two sides of three however they are arranged.
-## [param exhaustive_limit]: most tickets on two sides that are enumerated, 0 = unlimited
-## (every two-sided split is enumerated; a [DotLog] error and greedy past
-## [constant EXHAUSTIVE_BITS], where the mask cannot index the tickets).
+## [param sizes] and [param strengths] are per ticket; returns an Array of Arrays of ticket indexes, one per side, or an empty Array when the tickets
+## cannot be packed at all (three parties of two cannot make two sides of three). [param exhaustive_limit]: most tickets on two sides that are enumerated,
+## 0 = unlimited (every two-sided split is enumerated; a [DotLog] error and greedy past [constant EXHAUSTIVE_BITS], where the mask cannot index the tickets).
 static func split(sizes: Array, strengths: Array, sides: int, per_side: int,
 		exhaustive_limit: int = EXHAUSTIVE_LIMIT) -> Array:
 	var n := sizes.size()
