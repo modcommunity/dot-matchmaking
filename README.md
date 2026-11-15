@@ -70,7 +70,7 @@ A found match waits for everyone to accept. Someone who declines or does not ans
 
 ### Machinery (`DotMatchmakingConfig`)
 
-Layered like every Dot config: defaults, JSON or `matchmaking.yml`, `DOT_MM_*` environment, `--mm-*` command line.
+Layered like every Gamespice config: defaults, JSON or `matchmaking.yml`, `DOT_MM_*` environment, `--mm-*` command line.
 
 | Setting | Default | What it does |
 | --- | --- | --- |
