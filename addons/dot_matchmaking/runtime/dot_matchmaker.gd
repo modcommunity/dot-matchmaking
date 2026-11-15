@@ -69,6 +69,9 @@ var _cooldowns: Dictionary = {}
 
 var _since_pass: float = 0.0
 var _started: bool = false
+## Rate limit for the search-budget warning: last warn (msec) and exhaustions since it.
+var _budget_warn_ms: int = -1
+var _budget_seen: Dictionary = {}
 
 
 func _ready() -> void:
@@ -224,7 +227,9 @@ func run_pass() -> Array:
 	var found := []
 	for q in _queues.values():
 		var queue: DotMmQueue = q
-		for m_v in queue.form(now):
+		var formed := queue.form(now)
+		_note_budget(queue)
+		for m_v in formed:
 			var m: DotMmMatch = m_v
 			found.append(m)
 			DotLog.info(CHANNEL, "match found", m.describe())
@@ -235,6 +240,20 @@ func run_pass() -> Array:
 				_pending[m.id] = {"m": m, "deadline": deadline, "accepted": {}}
 				match_found.emit(m, deadline)
 	return found
+
+
+func _note_budget(queue: DotMmQueue) -> void:
+	var id := String(queue.playlist.id)
+	var before: int = _budget_seen.get(id, 0)
+	if queue.budget_exhausted == before:
+		return
+	var now_ms := Time.get_ticks_msec()
+	if _budget_warn_ms >= 0 and now_ms - _budget_warn_ms < 10000:
+		return
+	_budget_warn_ms = now_ms
+	_budget_seen[id] = queue.budget_exhausted
+	DotLog.warn(CHANNEL, "search budget ran out; anchors left waiting (raise playlist search_budget, 0 = unlimited)",
+		{"playlist": id, "since_warning": queue.budget_exhausted - before, "search_budget": queue.playlist.search_budget})
 
 
 func accept(match_id: String, player_id: String) -> DotResult:

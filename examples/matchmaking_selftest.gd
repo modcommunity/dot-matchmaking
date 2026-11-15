@@ -16,7 +16,7 @@ extends Node
 ## [/codeblock]
 
 const SECTIONS := 9
-const CHECKS := 136
+const CHECKS := 142
 
 var _passed := 0
 var _failed := 0
@@ -188,6 +188,20 @@ func _test_balance() -> void:
 	_check(pl.validate().ok, "a side of 100 (past the inspector's 64) validates")
 	pl.exhaustive_limit = -1
 	_check(not pl.validate().ok, "a negative exhaustive_limit is refused, not clamped")
+	pl.exhaustive_limit = 16
+	_check(pl.search_budget == DotMmQueue.SEARCH_BUDGET, "a playlist's search_budget defaults to 4000")
+	pl.search_budget = -1
+	_check(not pl.validate().ok, "a negative search_budget is refused, not clamped")
+
+	var tight := DotMmPlaylist.of(&"tight", 2, 1)
+	tight.min_quality = 0.0
+	tight.search_budget = 1
+	var tq := DotMmQueue.new(tight)
+	tq.add(DotMmTicket.solo("x", &"tight", DotMmRating.of(1500.0, 80.0), {"eu": 30}, 0.0))
+	tq.add(DotMmTicket.solo("y", &"tight", DotMmRating.of(1500.0, 80.0), {"eu": 30}, 0.0))
+	_check(tq.form(0.0).is_empty() and tq.budget_exhausted > 0, "a search budget that runs out leaves the pair waiting, and is counted")
+	tight.search_budget = 0
+	_check(tq.form(0.0).size() == 1, "search_budget 0 (unlimited) matches them")
 
 
 # --- 4 ----------------------------------------------------------------------
@@ -489,6 +503,16 @@ func _test_backbone() -> void:
 	fake.status = 200
 	var flushed := await bb.flush()
 	_check(flushed.ok and bb.pending_count() == 0, "and sent when it can")
+	bb.max_pending = 2
+	fake.status = 503
+	for m_i in range(3):
+		await bb.submit(&"duel", "cap%d" % m_i, [["k1"], ["k2"]], [1, 2])
+	_check(bb.pending_count() == 2 and bb.dropped == 1, "past max_pending the oldest goes, counted in dropped")
+	bb.max_pending = 0
+	await bb.submit(&"duel", "cap3", [["k1"], ["k2"]], [1, 2])
+	_check(bb.pending_count() == 3 and bb.dropped == 1, "and max_pending 0 keeps every one")
+	fake.status = 200
+	await bb.flush()
 
 	# The site's bounds, met here rather than refused there.
 	fake.posts.clear()

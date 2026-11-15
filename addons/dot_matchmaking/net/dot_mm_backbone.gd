@@ -41,7 +41,7 @@ const SCOPE_WRITE := "RATING_WRITE"
 
 const ACCOUNT_PREFIX := "backbone:"
 
-## Results kept for retry when the backbone is unreachable. Past this the oldest goes.
+## Default for [member max_pending].
 const MAX_PENDING := 200
 
 ## The site's own bounds (website-city `src/types/integration/rating.ts`): queues one
@@ -90,6 +90,11 @@ var _pending: Array = []
 var _declared: Dictionary = {}
 var sent: int = 0
 var dropped: int = 0
+## Results kept for retry when the backbone is unreachable. Default 200, 0 = unlimited. Past
+## it the oldest goes, counted in [member dropped] with a rate-limited warning.
+var max_pending: int = MAX_PENDING
+var _drop_warn_ms: int = -1
+var _drops_unwarned: int = 0
 ## Kept results the site then refused outright (see [method is_refused]), let go by
 ## [method flush] so the ones behind them can be sent.
 var refused: int = 0
@@ -288,9 +293,11 @@ func submit(playlist_id: StringName, match_id: String, sides: Array, placements:
 	if not res.ok:
 		if raw.is_retryable() and not is_refused(raw):
 			_pending.append(body)
-			while _pending.size() > MAX_PENDING:
+			while max_pending > 0 and _pending.size() > max_pending:
 				_pending.pop_front()
 				dropped += 1
+				_drops_unwarned += 1
+			_warn_dropped()
 		return res
 	return _absorb(playlist_id, res.value)
 
@@ -447,3 +454,15 @@ static func site_error(body: String) -> String:
 	if parsed is Dictionary and (parsed as Dictionary).get("error") is String:
 		return str((parsed as Dictionary)["error"])
 	return ""
+
+
+func _warn_dropped() -> void:
+	if _drops_unwarned == 0:
+		return
+	var now_ms := Time.get_ticks_msec()
+	if _drop_warn_ms >= 0 and now_ms - _drop_warn_ms < 10000:
+		return
+	_drop_warn_ms = now_ms
+	DotLog.warn(CHANNEL, "retry queue full; oldest results dropped (raise max_pending, 0 = unlimited)",
+		{"dropped_since_warning": _drops_unwarned, "dropped": dropped, "max_pending": max_pending})
+	_drops_unwarned = 0

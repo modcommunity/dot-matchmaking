@@ -28,8 +28,13 @@ extends RefCounted
 # No log channel: a pure function of the tickets and [code]now[/code], run every pass.
 # DotMatchmaker logs what comes out of it -- queued, match found, fell through.
 
-## Subsets tried per anchor before giving up on it for this pass.
+## Default for [member DotMmPlaylist.search_budget]: subsets tried per anchor before giving
+## up on it for this pass.
 const SEARCH_BUDGET := 4000
+
+## Searches that ran out of [member DotMmPlaylist.search_budget] (cumulative). DotMatchmaker
+## warns when it moves, so an anchor left waiting by the budget is never silent.
+var budget_exhausted: int = 0
 
 var playlist: DotMmPlaylist = null
 
@@ -169,10 +174,13 @@ func _build_around(anchor: DotMmTicket, order: Array, consumed: Dictionary, now:
 			return a.id < b.id
 		)
 
-		var budget: Array[int] = [SEARCH_BUDGET]
+		# budget[0] counts down; 0 = unlimited, so the search starts negative and never hits 0.
+		var budget: Array[int] = [pl.search_budget if pl.search_budget > 0 else -1]
 		var chosen: Array = [anchor]
 		var found := _search(pool, 0, chosen, anchor.size(), need, quality_floor, budget)
 		if found == null:
+			if budget[0] == 0:
+				budget_exhausted += 1
 			continue
 
 		found.region = region
@@ -210,9 +218,12 @@ func _search(pool: Array, from: int, chosen: Array, count: int, need: int,
 	if count == need:
 		return _try(chosen, quality_floor)
 	for i in range(from, pool.size()):
-		budget[0] -= 1
-		if budget[0] <= 0:
+		if budget[0] == 0:
 			return null
+		if budget[0] > 0:
+			budget[0] -= 1
+			if budget[0] == 0:
+				return null
 		var t: DotMmTicket = pool[i]
 		if count + t.size() > need:
 			continue

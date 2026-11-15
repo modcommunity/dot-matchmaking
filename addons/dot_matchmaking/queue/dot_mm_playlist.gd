@@ -47,6 +47,11 @@ extends Resource
 ## the balancer logs an error and goes greedy.
 @export_range(0, 63, 1, "or_greater") var exhaustive_limit: int = DotMmBalance.EXHAUSTIVE_LIMIT
 
+## Candidate sets the queue tries per anchor per region before giving up on that anchor for
+## the pass. Default 4000, 0 = unlimited. A pass runs inside a frame; a budget that runs out
+## leaves the anchor waiting and is counted in [member DotMmQueue.budget_exhausted].
+@export_range(0, 1000000, 1, "or_greater") var search_budget: int = DotMmQueue.SEARCH_BUDGET
+
 @export_group("Skill")
 
 ## Whether this queue moves ratings. An unranked queue still MATCHES by skill — against
@@ -184,6 +189,8 @@ func validate() -> DotResult:
 		)
 	if exhaustive_limit < 0:
 		return DotResult.fail(DotError.CODE_INVALID, "exhaustive_limit is a ticket count, 0 = unlimited", "%s: %d" % [id, exhaustive_limit])
+	if search_budget < 0:
+		return DotResult.fail(DotError.CODE_INVALID, "search_budget is a count of candidate sets, 0 = unlimited", "%s: %d" % [id, search_budget])
 	if max_latency_cap_ms < max_latency_ms:
 		return DotResult.fail(DotError.CODE_INVALID, "the latency cap is below the starting latency", String(id))
 	return DotResult.success(null)
