@@ -1,3 +1,5 @@
+[![dot-matchmaking - GameSpice addon](docs/banner.png)](https://moddingcommunity.com/a/262-dot-matchmaking)
+
 Skill-based matchmaking for a Godot 4 game. Players and parties queue, the queue finds a fair match in a region everyone can reach, everyone accepts, a server is found, and the result moves everybody's rating. It needs only [dot-core](https://github.com/gamespice-platform/core). Part of TMC's open source **Gamespice** collection (MIT licence).
 
 > Built with Claude Code. Every addon has a headless test suite and the suites pass, but little of this has met real players yet. Please report rough edges.
