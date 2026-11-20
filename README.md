@@ -1,4 +1,4 @@
-[![Matchmaking - GameSpice addon](docs/banner.png)](https://moddingcommunity.com/a/262-dot-matchmaking)
+[![Matchmaking - GameSpice addon](docs/banner.png)](https://moddingcommunity.com/a/72-gs-matchmaking)
 
 Skill-based matchmaking for a Godot 4 game. Players and parties queue, the queue finds a fair match in a region everyone can reach, everyone accepts, a server is found, and the result moves everybody's rating. It needs only [dot-core](https://github.com/gamespice-platform/core). Part of TMC's open source [**GameSpice**](https://gamespice.net) collection (MIT licence).
 
