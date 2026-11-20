@@ -6,7 +6,7 @@ extends RefCounted
 ## [b]Written ahead of its endpoints.[/b] website-city has parties, statistics and
 ## leaderboards and has no skill rating of any kind yet; the contract this speaks is in
 ## [code]docs/backbone-contract.md[/code] in this repository, shaped like the stats
-## routes dot-stats already uses so that the site half is a copy of a pattern it already
+## routes GameSpice Stats already uses so that the site half is a copy of a pattern it already
 ## has rather than a new one. A site without the routes answers every call with a 404 page
 ## (told apart from the site's own "no such playlist" 404 in [method _explain]) and the
 ## local store keeps working, which is the state a self-hosted ranked server is in
@@ -16,17 +16,17 @@ extends RefCounted
 ## the numbers could file any numbers, and ratings are the one figure here that decides
 ## who other people are made to play against. So [method submit] sends the RESULT — sides,
 ## places, participation, leavers — and stores whatever the site answers. The algorithm is
-## deliberately duplicated in the site (the dot-stats precedent: a rule that lives only in
+## deliberately duplicated in the site (the GameSpice Stats precedent: a rule that lives only in
 ## the game is one the site cannot check), and both halves test it against the same
 ## worked example from the Glicko-2 paper.
 ##
-## [b]dot-auth is not a dependency and its client is not named.[/b] [member client] is any
+## [b]GameSpice Auth is not a dependency and its client is not named.[/b] [member client] is any
 ## object with [code]post_integration(path, body)[/code] and
 ## [code]get_integration(path, query)[/code], which is [code]DotBackboneClient[/code]: it
 ## stamps [code]ts[/code] and [code]nonce[/code] and holds the credential, so nothing here
 ## knows a token exists.
 ##
-## [b]A player id is a pseudonym, never an account id.[/b] The same refusal dot-stats makes,
+## [b]A player id is a pseudonym, never an account id.[/b] The same refusal GameSpice Stats makes,
 ## for the same reason: an id shaped like [code]backbone:…[/code] is refused before it
 ## leaves the server.
 
@@ -395,7 +395,7 @@ func _post_submit(body: Dictionary) -> DotResult:
 ## Whether [param res], as the client answered it, is the site refusing the body itself, so
 ## that sending it again gets the same answer: a 4xx other than 401, 403, 408 and 429, and of
 ## the 404s only its "No playlist" (Next's page or a missing app is not about the body).
-## dot-core counts any non-5xx status but those as retryable, so this is checked first.
+## GameSpice Core counts any non-5xx status but those as retryable, so this is checked first.
 static func is_refused(res: DotResult) -> bool:
 	if res == null or res.ok or res.error == null:
 		return false
@@ -431,7 +431,7 @@ func _post_raw(path: String, body: Dictionary) -> DotResult:
 ## A 404 means one of two things, and they need opposite fixes. The site's own handlers
 ## answer JSON with an [code]error[/code] ("No playlist "duel" — declare it with
 ## rating/define first.", or the credential's app or server no longer existing). A route
-## that does not exist is Next's HTML not-found page, with no JSON at all. dot-core's
+## that does not exist is Next's HTML not-found page, with no JSON at all. GameSpice Core's
 ## [DotHttp] keeps the first 512 bytes of the body in [member DotError.detail].
 func _explain(res: DotResult, scope: String) -> DotResult:
 	if res.error != null and res.error.http_status == 403:

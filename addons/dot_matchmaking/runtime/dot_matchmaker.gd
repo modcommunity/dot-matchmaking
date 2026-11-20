@@ -15,7 +15,7 @@ extends Node
 ## send its own rating could send any rating, and a matchmaker that believed it would be
 ## the easiest smurfing tool ever shipped.
 ##
-## [b]Parties come in whole.[/b] dot-party is not a dependency and nothing here names it:
+## [b]Parties come in whole.[/b] GameSpice Party is not a dependency and nothing here names it:
 ## a party is a ticket with several ids on it and a [code]party_id[/code] that rides
 ## through to the result. See [method enqueue].
 ##

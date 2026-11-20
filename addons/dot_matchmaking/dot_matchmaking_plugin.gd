@@ -1,7 +1,7 @@
 @tool
 extends EditorPlugin
 
-## Editor entry point for dot-matchmaking. Registers inspector types only.
+## Editor entry point for GameSpice Matchmaking. Registers inspector types only.
 ##
 ## No autoloads: a lobby server and a suite both run two matchmakers in one process, and a
 ## global would make them one.

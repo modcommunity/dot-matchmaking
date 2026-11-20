@@ -634,7 +634,7 @@ func _test_site_rules() -> void:
 	_check(r.ok and int(r.value) == 1 and rbb.pending_count() == 0 and rb.posts.size() == 4, "and a retried result meets the same 404 the same way")
 
 	# A kept result the site refuses outright would be refused every time: let it go, so
-	# the ones behind it are sent. dot-core counts a 400 as retryable; the site does not.
+	# the ones behind it are sent. GameSpice Core counts a 400 as retryable; the site does not.
 	var pair := [["k1"], ["k2"]]
 	rb.posts.clear()
 	rb.script_answers = [[400, '{"error":"Side 1 has 2 players; this playlist plays 1."}']]

@@ -10,7 +10,7 @@ One thing the site does that a client must allow for: its integration handler co
 
 ## Routes
 
-Under `/api/integration/v1`, integration credential, `ts` (Unix **seconds**) and `nonce` as for every integration route. dot-auth's `DotBackboneClient.post_integration` / `get_integration` do the stamping; `DotMmBackbone` calls them by name. Two new scopes: `RATING_READ`, `RATING_WRITE`.
+Under `/api/integration/v1`, integration credential, `ts` (Unix **seconds**) and `nonce` as for every integration route. GameSpice Auth's `DotBackboneClient.post_integration` / `get_integration` do the stamping; `DotMmBackbone` calls them by name. Two new scopes: `RATING_READ`, `RATING_WRITE`.
 
 ### `POST rating/define` — `RATING_WRITE`
 
@@ -43,7 +43,7 @@ One finished match. **No rating is sent.** The site rates.
 { "ok": true, "ratings": { "k7Qx…": { "rating": 1523.4, "deviation": 181.2, "volatility": 0.06, "games": 1, "last_played": 1790000000 } } }
 ```
 
-`matchId` is idempotent: the same match filed twice rates once. `player` is the **per-scope pseudonymous key** (`play/scope-key`), never an account id — `DotMmBackbone` refuses anything shaped `backbone:…` before it leaves the server, for the reason dot-stats does.
+`matchId` is idempotent: the same match filed twice rates once. `player` is the **per-scope pseudonymous key** (`play/scope-key`), never an account id — `DotMmBackbone` refuses anything shaped `backbone:…` before it leaves the server, for the reason GameSpice Stats does.
 
 ### `GET rating/players?playlist=&players=a,b,c` — `RATING_READ`
 
@@ -76,7 +76,7 @@ Two different things, told apart by the body (`DotMmBackbone._explain`). A site 
 
 The site keeps answering an undeclared queue with that 404 (changing the status would break the contract), so the game handles it: a `submit` (or a `flush` of a kept one) that gets `No playlist …` declares that one queue again from the row `define` last sent for it, and files the result once more (`DotMmBackbone._post_submit`). Once, not a loop: if the queue is still missing (the owner's 50-playlist cap, say) the second 404 is the answer. A queue this backbone never declared cannot be, and its 404 is passed on with no define sent. This is what saves a match filed while the boot-time `define` is still in flight: `define` records its rows before it sends anything.
 
-What is kept for retry is only what may pass later: unreachable, a 5xx, a 429, a 408. dot-core's `DotError.from_http` counts every other non-404 4xx as retryable too, but a body the site refused (a 400 for a shape the declared queue does not have, a queue still undeclared) is refused every time, so `DotMmBackbone.is_refused` keeps it out of the queue, and `flush` lets go of one already there (counted in `refused`, with a warning) rather than stop on it and hold every result behind it until `MAX_PENDING` pushes them out. A 401, a 403 or a route-missing 404 is about the credential or the deployment, not the body: `flush` stops on it and keeps everything.
+What is kept for retry is only what may pass later: unreachable, a 5xx, a 429, a 408. GameSpice Core's `DotError.from_http` counts every other non-404 4xx as retryable too, but a body the site refused (a 400 for a shape the declared queue does not have, a queue still undeclared) is refused every time, so `DotMmBackbone.is_refused` keeps it out of the queue, and `flush` lets go of one already there (counted in `refused`, with a warning) rather than stop on it and hold every result behind it until `MAX_PENDING` pushes them out. A 401, a 403 or a route-missing 404 is about the credential or the deployment, not the body: `flush` stops on it and keeps everything.
 
 ## Rating parity: the config's rules go with the declaration
 

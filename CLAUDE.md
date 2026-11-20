@@ -1,10 +1,10 @@
-# dot-matchmaking
+# GameSpice Matchmaking
 
 Who plays whom: Glicko-2 ratings per queue, a queue whose tolerances widen with waiting, parties placed whole, balanced sides, an accept step, a server to play on, and a result that moves the ratings. The site rates too: results go up through website-city's `rating/*` routes and the ratings come back.
 
 Read the family [CLAUDE.md](../../CLAUDE.md) first, and [docs/backbone.md](../../docs/backbone.md) for anything that talks to website-city.
 
-**The distributable is `addons/dot_matchmaking/`.** It requires [dot-core](../dot-core) and nothing else (`ln -s ../../dot-core/addons/dot_core addons/dot_core`, gitignored). dot-auth's `DotBackboneClient` is reached by duck typing (`post_integration`, `get_integration`). dot-server-deploy hosts a `DotMatchmaker` when its matchmaking config enables one.
+**The distributable is `addons/dot_matchmaking/`.** It requires [GameSpice Core](../dot-core) and nothing else (`ln -s ../../dot-core/addons/dot_core addons/dot_core`, gitignored). dot-auth's `DotBackboneClient` is reached by duck typing (`post_integration`, `get_integration`). dot-server-deploy hosts a `DotMatchmaker` when its matchmaking config enables one.
 
 ## Read before
 

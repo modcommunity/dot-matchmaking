@@ -1,4 +1,4 @@
-# dot-matchmaking design
+# GameSpice Matchmaking design
 
 Why the matchmaker is shaped the way it is, and why the obvious alternative is wrong at each point. The site half is in [backbone-contract.md](backbone-contract.md); the rules are one line each in [CLAUDE.md](../CLAUDE.md).
 
@@ -38,7 +38,7 @@ A queue pass asks for every member's rating; an `await` in the middle of that is
 
 ## The site rates
 
-`DotMmBackbone.submit` sends the result, not numbers, and stores what comes back. The algorithm is duplicated on the site, as dot-stats' merge rule is, and both sides test the same worked example (the suite's first section).
+`DotMmBackbone.submit` sends the result, not numbers, and stores what comes back. The algorithm is duplicated on the site, as GameSpice Stats' merge rule is, and both sides test the same worked example (the suite's first section).
 
 Glickman's paper prints 1464.06 and 151.52 for its worked example, from intermediates rounded to four places; exact arithmetic gives 1464.0507 and 151.5165, which is what every exact implementation reports. The suite checks the exact figures to 0.001: a tolerance wide enough to accept the printed ones would also accept a real slip. Every other check compares ratings with each other and would still pass against a rating system with an arithmetic slip in it, which is why section 1 is the one to keep.
 
@@ -52,7 +52,7 @@ A body the site rejects is a 400, and a 400 is not retried: the match is gone. S
 
 ## A result can arrive before its queue
 
-The site answers a submit for an undeclared queue with a 404 (`No playlist …`), and a 404 is not kept for retry. So the backbone remembers every row `define` sends (before sending it), and on that 404 declares the one queue again and files the result once more. Once: a second 404 is the answer. A kept result the site then refuses outright is let go by `flush` (counted in `refused`), not left at the head of the queue holding every result behind it: dot-core calls a 400 retryable, the backbone does not (`is_refused`). Details in the [contract](backbone-contract.md#what-a-404-means).
+The site answers a submit for an undeclared queue with a 404 (`No playlist …`), and a 404 is not kept for retry. So the backbone remembers every row `define` sends (before sending it), and on that 404 declares the one queue again and files the result once more. Once: a second 404 is the answer. A kept result the site then refuses outright is let go by `flush` (counted in `refused`), not left at the head of the queue holding every result behind it: GameSpice Core calls a 400 retryable, the backbone does not (`is_refused`). Details in the [contract](backbone-contract.md#what-a-404-means).
 
 ## Deliberately not here
 
