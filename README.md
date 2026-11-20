@@ -1,6 +1,6 @@
 [![dot-matchmaking - GameSpice addon](docs/banner.png)](https://moddingcommunity.com/a/262-dot-matchmaking)
 
-Skill-based matchmaking for a Godot 4 game. Players and parties queue, the queue finds a fair match in a region everyone can reach, everyone accepts, a server is found, and the result moves everybody's rating. It needs only [dot-core](https://github.com/gamespice-platform/core). Part of TMC's open source **Gamespice** collection (MIT licence).
+Skill-based matchmaking for a Godot 4 game. Players and parties queue, the queue finds a fair match in a region everyone can reach, everyone accepts, a server is found, and the result moves everybody's rating. It needs only [dot-core](https://github.com/gamespice-platform/core). Part of TMC's open source [**GameSpice**](https://gamespice.net) collection (MIT licence).
 
 > Built with Claude Code. Every addon has a headless test suite and the suites pass, but little of this has met real players yet. Please report rough edges.
 
@@ -72,7 +72,7 @@ A found match waits for everyone to accept. Someone who declines or does not ans
 
 ### Machinery (`DotMatchmakingConfig`)
 
-Layered like every Gamespice config: defaults, JSON or `matchmaking.yml`, `DOT_MM_*` environment, `--mm-*` command line.
+Layered like every GameSpice config: defaults, JSON or `matchmaking.yml`, `DOT_MM_*` environment, `--mm-*` command line.
 
 | Setting | Default | What it does |
 | --- | --- | --- |
